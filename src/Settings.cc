@@ -22,12 +22,6 @@ void Settings::ReadSettings(const char* filename) {
 	TEnv* sett = new TEnv(GetSettingsFile().c_str());
 	fVerboseLevel = sett->GetValue("VerboseLevel",1);
 
-	for(int i = 0; i < 4; i++) {
-		fFBMaxStripPos[i] = sett->GetValue(Form("Forward.Max.Pos.%d",i),1.0);
-		fFBMinStripPos[i] = sett->GetValue(Form("Forward.Min.Pos.%d",i),0.0);
-		fBBMaxStripPos[i] = sett->GetValue(Form("Backward.Max.Pos.%d",i),1.0);
-		fBBMinStripPos[i] = sett->GetValue(Form("Backward.Min.Pos.%d",i),0.0);
-	}
 	fSmearStrip = sett->GetValue("SmearStrip", true);
 	fDeadLayers = sett->GetValue("IncludeDeadLayers",1);
 }
@@ -54,10 +48,6 @@ void Settings::PrintSettings() {
 		std::cout<<Form("FBarrel.E.Thick.%d\t",i)<<GetFBarrelErestSingleThickness()[i]<<std::endl;
 		std::cout<<Form("BBarrel.Delta.Thick.%d\t",i)<<GetBBarrelDeltaESingleThickness()[i]<<std::endl;
 		std::cout<<Form("BBarrel.E.Thick.%d\t",i)<<GetBBarrelErestSingleThickness()[i]<<std::endl;
-		std::cout<<Form("Forward.Max.Pos.%d\t",i)<<fFBMaxStripPos[i]<<std::endl;
-		std::cout<<Form("Forward.Min.Pos.%d\t",i)<<fFBMinStripPos[i]<<std::endl;
-		std::cout<<Form("Backward.Max.Pos.%d\t",i)<<fBBMaxStripPos[i]<<std::endl;
-		std::cout<<Form("Backward.Min.Pos.%d\t",i)<<fBBMinStripPos[i]<<std::endl;
 	}
 
 	std::cout<<"SmearStripNr\t"<<fSmearStrip<<std::endl;

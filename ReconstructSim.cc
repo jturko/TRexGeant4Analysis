@@ -32,7 +32,7 @@ int main(int argc, char* argv[]) {
 	char* SettingFile = nullptr;
 	string particleType;
 	bool verbose = false;
-	bool test = false;
+	Long64_t maxEntries = -1;
 	bool writeTree = false;
 	// command line interface
 	CommandLineInterface* interface = new CommandLineInterface();
@@ -43,7 +43,7 @@ int main(int argc, char* argv[]) {
 	interface->Add("-particleType", "p or d", &particleType);
 	interface->Add("-v", "verbose mode", &verbose);
 	interface->Add("-t", "write output tree", &writeTree);
-	interface->Add("-test", "testing: just 10 entries", &test);
+	interface->Add("-n", "max. # of entries processed", &maxEntries);
 	interface->CheckFlags(argc, argv);
 
 	if(InputFile == nullptr || OutputFile == nullptr) {
@@ -72,10 +72,17 @@ int main(int argc, char* argv[]) {
 	sett->ReadSettings(SettingFile);
 	if(verbose) sett->PrintSettings();
 
-	std::cout << "beam N = " << sett->GetProjectileA()-sett->GetProjectileZ() << ", Z = " << sett->GetProjectileZ() 
-		<< " on target N = " << sett->GetTargetA()-sett->GetTargetZ() << ", Z = " << sett->GetTargetZ() << std::endl;
+	std::cout<<"beam N = "<<sett->GetProjectileA()-sett->GetProjectileZ()<<", Z = "<<sett->GetProjectileZ() 
+		<< " on target N = "<<sett->GetTargetA()-sett->GetTargetZ()<<", Z = "<<sett->GetTargetZ()<<std::endl;
 
 	double beamEnergy = sett->GetBeamEnergy(); //initial beam energy (total) in MeV
+
+	// nStrips are only used for the second layer (which is double-sided), and we assume that forward and backward detectors are the same
+	int nStripsX = static_cast<int>(sett->GetSecondFBarrelDeltaESingleLengthX()/sett->GetSecondFBarrelDeltaESingleStripWidth());
+	int nStripsY = static_cast<int>(sett->GetSecondFBarrelDeltaESingleLengthY()/sett->GetSecondFBarrelDeltaESingleStripWidth());
+
+	std::cout<<"number of strips in x "<<nStripsX<<" ("<<sett->GetSecondFBarrelDeltaESingleLengthX()<<"/"<<sett->GetSecondFBarrelDeltaESingleStripWidth()<<")"<<std::endl;
+	std::cout<<"number of strips in y "<<nStripsY<<" ("<<sett->GetSecondFBarrelDeltaESingleLengthY()<<"/"<<sett->GetSecondFBarrelDeltaESingleStripWidth()<<")"<<std::endl;
 
 	////////////////////////////////////
 	// prepare input and output trees
@@ -84,20 +91,29 @@ int main(int argc, char* argv[]) {
 	TTree* trGen = (TTree*) infile.Get("treeGen");
 	TTree* tr = (TTree*) infile.Get("treeDet");
 	if(tr == nullptr) {
-		cout << "could not find tree tr in file " << infile.GetName() << endl;
+		cout<<"could not find tree tr in file "<<infile.GetName()<<endl;
 		return 3;
 	}
 
-	vector<ParticleMC> *FirstBarrel[2] = {new vector<ParticleMC>, new vector<ParticleMC>} ;
-	vector<ParticleMC> *SecondBarrel[2] = { new vector<ParticleMC>, new vector<ParticleMC> };
+	vector<ParticleMC>* firstDeltaE[2] =  {nullptr, nullptr}; // new vector<ParticleMC>, new vector<ParticleMC>};
+	vector<ParticleMC>* secondDeltaE[2] = {nullptr, nullptr}; // new vector<ParticleMC>, new vector<ParticleMC>};
+	vector<ParticleMC>* pad[2] =          {nullptr, nullptr}; // new vector<ParticleMC>, new vector<ParticleMC>};
 
-	tr->SetBranchAddress("FBarrelMC",&FirstBarrel[0]);
-	tr->SetBranchAddress("SecondFBarrelDeltaEMC",&SecondBarrel[0]);
-	tr->SetBranchAddress("BBarrelMC",&FirstBarrel[1]);
-	tr->SetBranchAddress("SecondBBarrelDeltaEMC",&SecondBarrel[1]);                  
+	tr->SetBranchAddress("FBarrelDeltaEMC",&firstDeltaE[0]);
+	tr->SetBranchAddress("SecondFBarrelDeltaEMC",&secondDeltaE[0]);
+	tr->SetBranchAddress("FBarrelErestMC",&pad[0]);
+	tr->SetBranchAddress("BBarrelDeltaEMC",&firstDeltaE[1]);
+	tr->SetBranchAddress("SecondBBarrelDeltaEMC",&secondDeltaE[1]);
+	tr->SetBranchAddress("BBarrelErestMC",&pad[1]);
 
 	double reactionEnergyBeam;
 	trGen->SetBranchAddress("reactionEnergy", &reactionEnergyBeam);
+
+	double reactionXSim;
+	trGen->SetBranchAddress("reactionX", &reactionXSim);
+
+	double reactionYSim;
+	trGen->SetBranchAddress("reactionY", &reactionYSim);
 
 	double reactionZSim;
 	trGen->SetBranchAddress("reactionZ", &reactionZSim);
@@ -110,6 +126,9 @@ int main(int argc, char* argv[]) {
 
 	double recoilEnergySim;
 	trGen->SetBranchAddress("recoilEnergy", &recoilEnergySim);
+
+	UInt_t reactionSim;
+	trGen->SetBranchAddress("reaction", &reactionSim);
 
 	// create output file and output tree
 	TFile outfile(OutputFile,"recreate");  
@@ -152,84 +171,124 @@ int main(int argc, char* argv[]) {
 	double recoilEnergyRecdE;
 	double recoilEnergyRecErest;
 	double recoilThetaRec;
+	double recoilPhiRec;
 
 	double targetThick     = sett->GetTargetThicknessMgPerCm2();
 	double targetLength    = sett->GetTargetPhysicalLength();
 	double targetForwardZ  =   targetLength/2.;
 	double targetBackwardZ = - targetLength/2.;
 	if(verbose) { 
-		cout <<"Target Thickness from Input File: "<< targetThick << endl;
-		cout <<"Target ForwardZ from Input File: "<< targetForwardZ << endl;
-		cout <<"Target BackwardZ from Input File: "<< targetBackwardZ << endl;
-		cout <<"Target Length from Input File: "<< targetLength << endl;
+		cout <<"Target Thickness from Input File: "<< targetThick<<endl;
+		cout <<"Target ForwardZ from Input File: "<< targetForwardZ<<endl;
+		cout <<"Target BackwardZ from Input File: "<< targetBackwardZ<<endl;
+		cout <<"Target Length from Input File: "<< targetLength<<endl;
 	}
+	TSpline3* energyInTarget = beamTarget->Thickness2EnergyAfter(beamEnergy, targetThick, targetThick/1000., true);
+	energyInTarget->Write("energyInTarget");
 
 	// Define Histograms
 	TList list;
+	TH2F* originXY = new TH2F("originXY", "y vs. x of reconstructed origin", 200, -10., 10., 200, -10., 10.); list.Add(originXY);
+	TH2F* originXYErr = new TH2F("originXYErr", "Error y vs. error x of reconstructed origin - simulated origin", 200, -10., 10., 200, -10., 10.); list.Add(originXYErr);
 	TH2F* errorOrigin = new TH2F("errorOrigin", "Error between reconstructed and true origin vs. true origin", 200, -100., 100., 1000, -5, 5); list.Add(errorOrigin);
-	TH1F* errorTheta = new TH1F("errorTheta", "Error between reconstructed and true theta", 600, -30, 30); list.Add(errorTheta);
-	TH1F* qValueProton = new TH1F("qValueProton", "Excitaiton Energy Spectrum from reconstructed Protons", 5000, -20000, 20000); list.Add(qValueProton);
+	TH2F* errorThetaPhi = new TH2F("errorThetaPhi", "Error between reconstructed and true phi vs. error in theta", 600, -30, 30, 720, -360., 360.); list.Add(errorThetaPhi);
+	TH1F* excEnProton = new TH1F("excEnProton", "Excitaiton Energy Spectrum from reconstructed Protons", 5000, -20000, 20000); list.Add(excEnProton);
+	TH1F* reaction = new TH1F("reaction", "Simulated reaction/level", 10, -0.5, 9.5); list.Add(reaction);
+	TH2F* phiErrorVsPhi = new TH2F("phiErrorVsPhi","Error in reconstructed #varphi vs. simulated #varphi", 360, -180., 180., 720, -360., 360.); list.Add(phiErrorVsPhi);
+	TH2F* phiErrorVsPhiF0 = new TH2F("phiErrorVsPhiF0","Error in reconstructed #varphi vs. simulated #varphi, forward  detector #0 only", 360, -180., 180., 720, -360., 360.); list.Add(phiErrorVsPhiF0);
+	TH2F* phiErrorVsPhiB0 = new TH2F("phiErrorVsPhiB0","Error in reconstructed #varphi vs. simulated #varphi, backward detector #0 only", 360, -180., 180., 720, -360., 360.); list.Add(phiErrorVsPhiB0);
 
-	TH2F* dE12E = new TH2F("dE12E", "energy loss first +second layer vs total energy", 200, 0, 25000, 200, 0, 10000); list.Add(dE12E);
-	TH2F* dE1E = new TH2F("dE1E", "energy loss first layer vs total energy", 200, 0, 25000, 200, 0, 10000); list.Add(dE1E);
-	TH2F* dE2E = new TH2F("dE2E", "energy loss second layer vs total energy", 200, 0, 25000, 200, 0, 10000); list.Add(dE2E);
-	TH2F* eVsTheta = new TH2F("eVsTheta", "recoil energy vs theta (lab)", 180, 0, 180, 200, 0, 25000); list.Add(eVsTheta);
-	TH2F* eVsZ = new TH2F("eVsZ", "recoil energy vs z", 200, -100., 100., 200, 0, 25000); list.Add(eVsZ);
-	TH2F* eVsZSame = new TH2F("eVsZSame", "recoil energy vs z, first and second layer both forward or both backward", 200, -100., 100., 200, 0, 25000); list.Add(eVsZSame);
-	TH2F* eVsZCross = new TH2F("eVsZCross", "recoil energy vs z, first and second layer over cross", 200, -100., 100., 200, 0, 25000); list.Add(eVsZCross);
-	TH2F* eRecESim = new TH2F("eRecESim", "reconstructed energy vs simulated energy of recoil", 1000, 0, 25000, 1000,0, 25000); list.Add(eRecESim);
-	TH2F* zErrorTheta = new TH2F("zErrorTheta", "z position of reaction vs Error (deg.) in theta reconstruction", 200, -100, 100, 100, -15, 15); list.Add(zErrorTheta);
-	TH2F* thetaErrorTheta = new TH2F("thetaErrorTheta", "Theta (recoil) vs Error (deg.) in theta reconstruction", 180, 0, 180, 100, -15, 15); list.Add(thetaErrorTheta);
-	TH2F* zReactionEnergy = new TH2F("zReactionEnergy", "z position of reaction vs Beam energy (rec.)", 200, -100, 100, 1000, 0, 1.1*beamEnergy); list.Add(zReactionEnergy);
-	TH2F* qValueProtonVsTheta = new TH2F("qValueProtonVsTheta", "Excitation Energy Spectrum from reconstructed Protons;#vartheta_{lab}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(qValueProtonVsTheta);
-	TH2F* qValueProtonVsZ = new TH2F("qValueProtonVsZ", "Excitation Energy Spectrum from reconstructed Protons;z [mm];E_{exc} [keV]", 200, -100., 100., 5000, -20000, 20000); list.Add(qValueProtonVsZ);
+	TH2F* dE12VsPad = new TH2F("dE12VsPad", "energy loss first+second layer vs. pad energy", 200, 0, 25000, 200, 0, 10000); list.Add(dE12VsPad);
+	TH2F* dE12VsE = new TH2F("dE12VsE", "energy loss first+second layer vs. total energy", 200, 0, 25000, 200, 0, 10000); list.Add(dE12VsE);
+	TH2F* dE1VsE = new TH2F("dE1VsE", "energy loss first layer vs. total energy", 200, 0, 25000, 200, 0, 10000); list.Add(dE1VsE);
+	TH2F* dE2VsE = new TH2F("dE2VsE", "energy loss second layer vs. total energy", 200, 0, 25000, 200, 0, 10000); list.Add(dE2VsE);
+	TH2F* dE1VsdE2 = new TH2F("dE1VsdE2", "energy loss second layer vs. energy loss first layer", 200, 0, 10000, 200, 0, 10000); list.Add(dE1VsdE2);
+	TH2F* eVsTheta = new TH2F("eVsTheta", "recoil energy vs. theta (lab)", 180, 0, 180, 200, 0, 25000); list.Add(eVsTheta);
+	TH2F* eVsZ = new TH2F("eVsZ", "recoil energy vs. z", 200, -100., 100., 200, 0, 25000); list.Add(eVsZ);
+	TH2F* eVsZSame = new TH2F("eVsZSame", "recoil energy vs. z, first and second layer both forward or both backward", 200, -100., 100., 200, 0, 25000); list.Add(eVsZSame);
+	TH2F* eVsZCross = new TH2F("eVsZCross", "recoil energy vs. z, first and second layer over cross", 200, -100., 100., 200, 0, 25000); list.Add(eVsZCross);
+	TH2F* eRecESim = new TH2F("eRecESim", "reconstructed energy vs. simulated energy of recoil", 1000, 0, 25000, 1000,0, 25000); list.Add(eRecESim);
+	TH2F* thetaErrorVsZ = new TH2F("thetaErrorVsZ", "Error in #vartheta_{lab} reconstruction vs. simulated z-position;z [mm];#Delta#vartheta_{lab} [^{o}]", 200, -100, 100, 100, -15, 15); list.Add(thetaErrorVsZ);
+	TH2F* thetaErrorVsTheta = new TH2F("thetaErrorVsTheta", "Error in #vartheta_{lab} reconstruction vs. simulated #vartheta_{lab};#vartheta_{lab} [^{o}];#Delta#vartheta_{lab} [^{o}]", 180, 0, 180, 100, -15, 15); list.Add(thetaErrorVsTheta);
+	TH2F* zReactionEnergy = new TH2F("zReactionEnergy", "z position of reaction vs. Beam energy (rec.)", 200, -100, 100, 1000, 0, 1.1*beamEnergy); list.Add(zReactionEnergy);
+	TH2F* excEnProtonVsTheta = new TH2F("excEnProtonVsTheta", "Excitation Energy Spectrum from reconstructed Protons;#vartheta_{lab}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(excEnProtonVsTheta);
+	TH2F* excEnProtonVsZ = new TH2F("excEnProtonVsZ", "Excitation Energy Spectrum from reconstructed Protons;z [mm];E_{exc} [keV]", 200, -100., 100., 5000, -20000, 20000); list.Add(excEnProtonVsZ);
+	TH2F* excEnProtonVsThetaGS = new TH2F("excEnProtonVsThetaGS", "Excitation Energy Spectrum from reconstructed Protons, ground state only;#vartheta_{lab}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(excEnProtonVsThetaGS);
+	TH2F* excEnProtonVsZGS = new TH2F("excEnProtonVsZGS", "Excitation Energy Spectrum from reconstructed Protons, ground state only;z [mm];E_{exc} [keV]", 200, -100., 100., 5000, -20000, 20000); list.Add(excEnProtonVsZGS);
 	TH2F* thetaVsZ = new TH2F("thetaVsZ","#vartheta_{lab} vs. z", 200, -100., 100., 180, 0., 180.); list.Add(thetaVsZ);
 	TH2F* thetaVsZSame = new TH2F("thetaVsZSame","#vartheta_{lab} vs. z, first and second layer both forward or both backward", 200, -100., 100., 180, 0., 180.); list.Add(thetaVsZSame);
 	TH2F* thetaVsZCross = new TH2F("thetaVsZCross","#vartheta_{lab} vs. z, first and second layer over cross", 200, -100., 100., 180, 0., 180.); list.Add(thetaVsZCross);
+	TH2F* phiVsZ = new TH2F("phiVsZ","#varphi_{lab} vs. z", 200, -100., 100., 360, -180., 180.); list.Add(phiVsZ);
 	TH2F* hitpattern = new TH2F("hitpattern","detector # of second layer vs. detector # of first layer", 2, -0.5, 1.5, 2, -0.5, 1.5); list.Add(hitpattern);
 	TH2F* eCmVsZ = new TH2F("eCmVsZ","energy of cm-system vs. z;z [mm];e-cm [GeV]", 200, -100., 100., 2000, transferP->GetCmEnergy(0.)/1000., transferP->GetCmEnergy(beamEnergy)/1000.); list.Add(eCmVsZ);
 	TH2F* betaCmVsZ = new TH2F("betaCmVsZ","#beta of cm-system vs. z", 200, -100., 100., 2000, 0., 0.2); list.Add(betaCmVsZ);
+	TH2F* stripPattern = new TH2F("stripPattern","Parallel strip # (#varphi) vs. perpendicular strip # (#vartheta)", 2*nStripsY, 0., 2.*nStripsY, 4*nStripsX, 0., 4.*nStripsX); list.Add(stripPattern);
 
 	Particle part; 
 
-	// create and save energy vs theta-lab splines for reaction at front/middle/back of target
+	// create and save energy vs. theta-lab splines for reaction at front/middle/back of target
 	//std::cout<<"beam energy at front/middle/back of target: "<<beamEnergy/sett->GetProjectileA()<<"/";
 	std::cout<<"beam energy at front/middle/back of target: "<<beamEnergy<<"/";
 	//transferP->SetEBeam(beamEnergy/sett->GetProjectileA());
 	transferP->SetEBeam(beamEnergy);
 	transferP->Evslab(0., 180., 1.)->Write("RecoilEVsThetaLabFront");
-	beamTarget->SetTargetThickness(targetThick/2.);
 	//std::cout<<beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA()<<"/";
-	std::cout<<beamTarget->EnergyAfter(beamEnergy, -3, true)<<"/";
+	std::cout<<energyInTarget->Eval(targetThick/2.)/1000.<<"/";
 	//transferP->SetEBeam(beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA());
-	transferP->SetEBeam(beamTarget->EnergyAfter(beamEnergy, -3, true));
+	transferP->SetEBeam(energyInTarget->Eval(targetThick/2.)/1000.);
 	transferP->Evslab(0., 180., 1.)->Write("RecoilEVsThetaLabMiddle");
-	beamTarget->SetTargetThickness(targetThick);
 	//std::cout<<beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA()<<std::endl;
-	std::cout<<beamTarget->EnergyAfter(beamEnergy, -3, true)<<std::endl;
+	std::cout<<energyInTarget->Eval(targetThick)/1000.<<std::endl;
 	//transferP->SetEBeam(beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA());
-	transferP->SetEBeam(beamTarget->EnergyAfter(beamEnergy, -3, true));
+	transferP->SetEBeam(energyInTarget->Eval(targetThick)/1000.);
 	transferP->Evslab(0., 180., 1.)->Write("RecoilEVsThetaLabBack");
 
 	/************************************************************************************************************
 	 * loop over all entries
 	 ************************************************************************************************************/
 
-	Double_t nentries = tr->GetEntries();
-	if(test)
-		nentries = 10;
+	Long64_t nEntries = tr->GetEntries();
+	if(maxEntries > 0 && maxEntries < nEntries) nEntries = maxEntries;
 
-	cout << "Nr of Events " << nentries << endl;
+	cout<<"Nr of Events "<<nEntries<<endl;
 
-	for(int i=0; i<nentries;i++){
+	if(verbose) {
+		std::cout<<"***********************************************************************************************"<<std::endl
+			<<"*    Row   * Instance * FBarrelDe * SecondFBa * FBarrelEr * FBarrelDe * SecondFBa * FBarrelEr *"<<std::endl
+			<<"*    ***********************************************************************************************"<<std::endl;
+	}
+
+	for(Long64_t i = 0; i < nEntries; ++i) {
 		if(verbose) cout <<"Loop over entry Nr "<<i<<endl;
+		hit->Clear();
 		ParticleBranch->clear();
 		tr->GetEntry(i);
 		trGen->GetEntry(i);
-		Int_t silicon_mult_first = FirstBarrel[0]->size()+ FirstBarrel[1]->size();
-		Int_t silicon_mult_second = SecondBarrel[0]->size()+ SecondBarrel[1]->size();
+		Int_t silicon_mult_first = firstDeltaE[0]->size()+ firstDeltaE[1]->size();
+		Int_t silicon_mult_second = secondDeltaE[0]->size()+ secondDeltaE[1]->size();
 		TVector3 firstposition;
 		TVector3 secondposition;
+
+		if(verbose) {
+			std::cout<<"*    * "<<setw(8)<<i<<" *";
+			size_t d;
+			for(d = 0; d < firstDeltaE[0]->size() || d < secondDeltaE[0]->size(); ++d) {
+				std::cout<<" "<<setw(8)<<d<<" *";
+				if(d < firstDeltaE[0]->size()) std::cout<<" "<<setw(8)<<firstDeltaE[0]->at(d).GetID()<<" *";
+				else                           std::cout<<"          *";
+				if(d < secondDeltaE[0]->size()) std::cout<<" "<<setw(8)<<secondDeltaE[0]->at(d).GetID()<<" *";
+				else                            std::cout<<"          *";
+				if(d < pad[0]->size()) std::cout<<" "<<setw(8)<<pad[0]->at(d).GetID()<<" *";
+				else                   std::cout<<"          *";
+				if(d < firstDeltaE[0]->size() && firstDeltaE[0]->at(d).GetStripEnergy().size() > 0) std::cout<<" "<<setw(8)<<firstDeltaE[0]->at(d).GetStripEnergy()[0]<<" *";
+				else                                                                                std::cout<<"          *";
+				if(d < secondDeltaE[0]->size() && secondDeltaE[0]->at(d).GetStripEnergy().size() > 0) std::cout<<" "<<setw(8)<<secondDeltaE[0]->at(d).GetStripEnergy()[0]<<" *";
+				else                                                                                  std::cout<<"          *";
+				if(d < pad[0]->size()) std::cout<<" "<<setw(8)<<pad[0]->at(d).GetEdet()<<" *"<<std::endl;
+				else                   std::cout<<"          *"<<std::endl;
+			}
+			if(d == 0) std::cout<<std::endl;
+		}
 
 		Int_t index_first = 0;
 		Int_t index_second = 0;
@@ -238,46 +297,71 @@ int main(int argc, char* argv[]) {
 		//TODO: take into account multiple hits
 
 		if(silicon_mult_first > 1 || silicon_mult_second > 1) {
-			cout <<"Warning: Multiple hits in Silicon Tracker! "<< endl;
-			cout <<"First layer:  "<< silicon_mult_first<< "  Second layer:  "<<silicon_mult_second<< endl;
+			std::cout<<"Warning: Multiple hits in Silicon Tracker! "<<std::endl
+			         <<"First layer:  "<<silicon_mult_first<<" ( ";
+			for(auto dir : firstDeltaE) {
+				std::cout<<dir->size()<<" ";
+			}
+			std::cout<<")  Second layer:  "<<silicon_mult_second<<" ( ";
+			for(auto dir : secondDeltaE) {
+				std::cout<<dir->size()<<" ";
+			}
+			std::cout<<")"<<std::endl;
 		}
 
 		if(silicon_mult_first == 1 && silicon_mult_second == 1) { 
-			if(FirstBarrel[0]->size() == 1 ) {
-				hit->InitBarrel(&(FirstBarrel[0]->at(0)), "forward");
+			if(firstDeltaE[0]->size() == 1 ) {
+				hit->SetFirstDeltaE(firstDeltaE[0]->at(0), kForward);
 				index_first = 0;
 			} else {
-				hit->InitBarrel(&(FirstBarrel[1]->at(0)), "backward");
+				hit->SetFirstDeltaE(firstDeltaE[1]->at(0), kBackward);
 				index_first = 1;
 			}
 
-			//get position of hit in first layer
-			firstposition = hit->BPosition(sett->SmearStrip()); 
-
-			if(SecondBarrel[0]->size() == 1 ) {
-				hit->InitSecondBarrel(&(SecondBarrel[0]->at(0)), "forward");
+			if(secondDeltaE[0]->size() == 1 ) {
+				hit->SetSecondDeltaE(secondDeltaE[0]->at(0), kForward);
 				index_second = 0;
 			} else {
-				hit->InitSecondBarrel(&(SecondBarrel[1]->at(0)), "backward");
+				hit->SetSecondDeltaE(secondDeltaE[1]->at(0), kBackward);
 				index_second = 1;
 			}
+
+			if(pad[index_second]->size() == 1 ) {
+				hit->SetPad(pad[index_second]->at(0));
+			}
+
+			if(verbose) {
+				std::cout<<"Using pad "<<index_second<<" with "<<pad[index_second]->size()<<" detectors"<<std::endl;
+				for(int p = 0; p < 2; ++p) {
+					for(size_t d = 0; d < pad[p]->size(); ++d) {
+						std::cout<<p<<": pad "<<pad[p]->at(d).GetID()<<" = "<<pad[p]->at(d).GetEdet()<<" keV / "<<pad[p]->at(d).GetRear()<<" keV"<<std::endl;
+					}
+				}
+			}
+
+			//get position of hit in first layer
+			firstposition = hit->FirstPosition(sett->SmearStrip()); 
+
 			// get position of hit in second layer
-			secondposition = hit->SecondBPosition(sett->SmearStrip());
+			secondposition = hit->SecondPosition(sett->SmearStrip());
 
 			part.Clear();
 
 			// vector between two hits in Siliocn Tracker
 			part.SetPosition(secondposition - firstposition); 
 			if(verbose) {
-				cout << "Position to first hit: "<< firstposition.X() << "  "<<firstposition.Y()<<"   "<<firstposition.Z()<<endl;
-				cout << "Position to second hit: "<< secondposition.X() << "  "<<secondposition.Y()<<"   "<<secondposition.Z()<<endl;
-				cout << "Position of relative vextor: "<< part.GetPosition().X() << "  " << part.GetPosition().Y() << "  " << part.GetPosition().Z() << endl;
+				cout<<"Position to first hit: "<< firstposition.X()<<"  "<<firstposition.Y()<<"   "<<firstposition.Z()<<endl;
+				cout<<"Position to second hit: "<< secondposition.X()<<"  "<<secondposition.Y()<<"   "<<secondposition.Z()<<endl;
+				cout<<"Position of relative vextor: "<< part.GetPosition().X()<<"  "<<part.GetPosition().Y()<<"  "<<part.GetPosition().Z()<<endl;
 			}
 
 
 			// reaction angles
 			recoilThetaSim = recoilThetaSim*180./TMath::Pi();
 			recoilThetaRec = part.GetPosition().Theta()*180./TMath::Pi(); 
+			recoilPhiSim = recoilPhiSim*180./TMath::Pi();
+			recoilPhiRec = part.GetPosition().Phi()*180./TMath::Pi(); 
+			if(verbose) std::cout<<recoilPhiRec<<" - "<<recoilPhiSim<<" = "<<(recoilPhiRec - recoilPhiSim)<<std::endl;
 
 
 			//find the closest point between beam axis and vector of the two hits in the silicon tracker
@@ -299,16 +383,15 @@ int main(int argc, char* argv[]) {
 
 
 			//calculate target thickness for reconstruction of beam energy
-			beamTarget->SetTargetThickness(targetThickEvent);
-			beamEnergyRec = beamTarget->EnergyAfter(beamEnergy, -3, true);
-			if(verbose) cout <<"Beam Energy at Reaction: "<< beamEnergyRec << endl;
+			beamEnergyRec = energyInTarget->Eval(targetThickEvent)/1000.;
+			if(verbose) std::cout<<"Beam Energy at Reaction: "<<beamEnergyRec<<" keV"<<std::endl;
 
 
 			// reconstruct energy of recoil
-			recoilEnergyRecErest =  (FirstBarrel[index_first]->at(0)).GetEdet() ;
-			recoilEnergyRecdE    =  (FirstBarrel[index_first]->at(0)).GetRear()+ (SecondBarrel[index_second]->at(0)).GetRear() ;
+			recoilEnergyRecErest =  hit->GetPadEnergy();//(firstDeltaE[index_first]->at(0)).GetEdet() ;
+			recoilEnergyRecdE    =  hit->GetFirstDeltaEEnergy(verbose) + hit->GetSecondDeltaEEnergy(verbose); //(firstDeltaE[index_first]->at(0)).GetRear()+ (secondDeltaE[index_second]->at(0)).GetRear() ;
 			recoilEnergyRec = recoilEnergyRecdE + recoilEnergyRecErest;
-
+			if(verbose && index_first == 0 && index_second == 0) std::cout<<" "<<hit->GetFirstDeltaEEnergy()<<" , "<<hit->GetSecondDeltaEEnergy()<<", "<<hit->GetPadEnergy()<<" => "<<recoilEnergyRecdE<<", "<<recoilEnergyRecErest<<" => "<<recoilEnergyRec<<std::endl;
 			//update particle information
 			// TODO: reconstruct energy loss in gas and foil !!
 
@@ -333,35 +416,55 @@ int main(int argc, char* argv[]) {
 			// Fill some histograms
 			///////////////////////
 
+			reaction->Fill(reactionSim);
 			hitpattern->Fill(index_first, index_second);
+			originXY->Fill(vertex.X(), vertex.Y());
+			originXYErr->Fill(vertex.X() - reactionXSim, vertex.Y() - reactionYSim);
 			errorOrigin->Fill(reactionZSim,  vertex.Z()-reactionZSim );
-			errorTheta->Fill( recoilThetaSim - recoilThetaRec );
-			dE12E->Fill( recoilEnergyRec, recoilEnergyRecdE );
-			dE1E->Fill( recoilEnergyRec, (FirstBarrel[index_first]->at(0)).GetRear() );
-			dE2E->Fill( recoilEnergyRec, (SecondBarrel[index_second]->at(0)).GetRear() );
-			eVsTheta->Fill( recoilThetaRec, recoilEnergyRec );
+			errorThetaPhi->Fill(recoilThetaRec - recoilThetaSim, recoilPhiRec - recoilPhiSim);
+			dE12VsPad->Fill(recoilEnergyRecErest, recoilEnergyRecdE );
+			dE12VsE->Fill(recoilEnergyRec, recoilEnergyRecdE );
+			dE1VsE->Fill(recoilEnergyRec, hit->GetFirstDeltaEEnergy(verbose));//(firstDeltaE[index_first]->at(0)).GetRear() );
+			dE2VsE->Fill(recoilEnergyRec, hit->GetSecondDeltaEEnergy(verbose));//(secondDeltaE[index_second]->at(0)).GetRear() );
+			dE1VsdE2->Fill(hit->GetFirstDeltaEEnergy(verbose), hit->GetSecondDeltaEEnergy(verbose));//(firstDeltaE[index_first]->at(0)).GetRear() );
+			eVsTheta->Fill(recoilThetaRec, recoilEnergyRec);
 			eVsZ->Fill(vertex.Z(), recoilEnergyRec);
-			if(index_first == index_second) eVsZSame->Fill(vertex.Z(), recoilEnergyRec);
-			else                            eVsZCross->Fill(vertex.Z(), recoilEnergyRec);
-			eRecESim->Fill( recoilEnergySim, recoilEnergyRec );
-			zErrorTheta->Fill( reactionZSim, recoilThetaSim - recoilThetaRec );
-			thetaErrorTheta->Fill( recoilThetaSim , recoilThetaSim - recoilThetaRec );
-			zReactionEnergy->Fill(  reactionZSim, beamEnergyRec );
-			qValueProton->Fill( excEnergy );
-			qValueProtonVsTheta->Fill(recoilThetaRec, excEnergy);
-			qValueProtonVsZ->Fill(vertex.Z(), excEnergy);
+			eRecESim->Fill(recoilEnergySim, recoilEnergyRec);
+			thetaErrorVsZ->Fill(reactionZSim, recoilThetaRec - recoilThetaSim);
+			thetaErrorVsTheta->Fill(recoilThetaSim , recoilThetaRec - recoilThetaSim);
+			zReactionEnergy->Fill(reactionZSim, beamEnergyRec);
+			excEnProton->Fill(excEnergy);
+			excEnProtonVsTheta->Fill(recoilThetaRec, excEnergy);
+			excEnProtonVsZ->Fill(vertex.Z(), excEnergy);
+			if(reactionSim == 0) {
+				excEnProtonVsThetaGS->Fill(recoilThetaRec, excEnergy);
+				excEnProtonVsZGS->Fill(vertex.Z(), excEnergy);
+			}
 			thetaVsZ->Fill(vertex.Z(), recoilThetaRec);
-			if(index_first == index_second) thetaVsZSame->Fill(vertex.Z(), recoilThetaRec);
-			else                            thetaVsZCross->Fill(vertex.Z(), recoilThetaRec);
+			if(index_first == index_second) {
+				eVsZSame->Fill(vertex.Z(), recoilEnergyRec);
+				thetaVsZSame->Fill(vertex.Z(), recoilThetaRec);
+			} else {
+				eVsZCross->Fill(vertex.Z(), recoilEnergyRec);
+				thetaVsZCross->Fill(vertex.Z(), recoilThetaRec);
+			}
+			phiVsZ->Fill(vertex.Z(), recoilPhiRec);
+			phiErrorVsPhi->Fill(recoilPhiRec, recoilPhiRec - recoilPhiSim);
+			if(firstDeltaE[index_first]->at(0).GetID() == 0) {
+				if(index_first == 0) phiErrorVsPhiF0->Fill(recoilPhiRec, recoilPhiRec - recoilPhiSim);
+				else                 phiErrorVsPhiB0->Fill(recoilPhiRec, recoilPhiRec - recoilPhiSim);
+			}
 			betaCmVsZ->Fill(vertex.Z(), transferP->GetBetacm());
 			eCmVsZ->Fill(vertex.Z(), transferP->GetCmEnergy()/1000.);
+			stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
 		}   //end of mult = 1 events
 		if(i%1000 == 0){
-			cout<<setw(5)<<std::fixed<<setprecision(1)<<(100.*i)/nentries<<setprecision(3)<<" % done\r"<<flush;
+			cout<<setw(5)<<std::fixed<<setprecision(1)<<(100.*i)/nEntries<<setprecision(3)<<" % done\r"<<flush;
 		}
 
 	} // end of loop over all events
 
+	if(verbose) std::cout<<"***********************************************************************************************"<<std::endl;
 
 
 	//////////////////
@@ -373,7 +476,7 @@ int main(int argc, char* argv[]) {
 	list.Sort();
 	list.Write();
 
-	cout << "closing file ..." << endl;
+	cout<<"closing file ..."<<endl;
 	infile.Close();
 	outfile.Close();
 

@@ -87,7 +87,7 @@ TSpline3* Kinematics::Evscm(double thmin, double thmax, double size, int part){
 
 double Kinematics::GetExcEnergy(TLorentzVector recoil, bool verbose){    //doing what? DURCHRECHNEN!
 	if(verbose) {
-		std::cout<<"recoil mass "<<fParticle[2]->GetMass()*1000.<<" keV/c^2, ejectil mass "<<fParticle[3]->GetMass()*1000.<<" keV/c^2"<<std::endl;
+		std::cout<<"recoil mass "<<fParticle[2]->GetMass()*1000.<<" keV/c^2, ejectile mass "<<fParticle[3]->GetMass()*1000.<<" keV/c^2"<<std::endl;
 		std::cout<<"from recoil tot. energy "<<recoil.E()<<" keV, kin. energy "<<recoil.E()-fParticle[2]->GetMass()*1000.<<" keV"<<std::endl;
 	}
 	TLorentzVector ejectile;

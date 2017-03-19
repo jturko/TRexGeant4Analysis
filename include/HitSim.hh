@@ -10,7 +10,6 @@
 #include "TVector3.h"
 #include "TRandom.h"
 #include "TFile.h"
-#include "TVector3.h"
 
 #include "ParticleMC.hh"
 #include "Settings.hh"
@@ -19,27 +18,37 @@
 #define PI                       (TMath::Pi())
 #endif
 
+enum Direction { kForward, kBackward, kUndefined };
+
 class HitSim {
 public:
   HitSim(Settings* settings);
  
   void Clear();
-  void InitBarrel(ParticleMC* barrel, std::string direction);
-  //secondbarrel
-  void InitSecondBarrel(ParticleMC* secondbarrel, std::string direction);                    //#B.Wach
+  void SetFirstDeltaE(ParticleMC& firstbarrel, Direction direction);
+  void SetSecondDeltaE(ParticleMC& secondbarrel, Direction direction);
+  void SetPad(ParticleMC& pad);
 
-  TVector3 BPosition(bool smear);
-  //SecondBPosition
-  TVector3 SecondBPosition(bool smear);                                                //#B.Wach
+  TVector3 FirstPosition(bool smear);
+  TVector3 SecondPosition(bool smear);
+
+  double GetFirstDeltaEEnergy(bool verbose = false);
+  double GetSecondDeltaEEnergy(bool verbose = false);
+  double GetPadEnergy();
 
 private:
   Settings* fSett;
   TRandom* fRand;
-  ParticleMC* fBarrel;
-  ParticleMC* fSecondBarrel;                                                    //#B.Wach
-  std::string fDirection;
-  
-  double fMaxStrip[4];
-  double fMinStrip[4];
+  ParticleMC* fFirstDeltaE;
+  ParticleMC* fSecondDeltaE;
+  ParticleMC* fPad;
+  Direction fFirstDirection;
+  Direction fSecondDirection;
+
+  // variables to hold results
+  TVector3 fFirstPosition;
+  TVector3 fSecondPosition;
+  double fFirstEnergy;
+  double fSecondEnergy;
 };
 #endif

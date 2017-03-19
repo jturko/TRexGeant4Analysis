@@ -20,23 +20,12 @@ public:
   void ReadSettings(const char* filename = nullptr);
   void PrintSettings();
 
-  double FBMaxStripPos(int quadr)    { if(0 <= quadr && quadr < 4) return fFBMaxStripPos[quadr];    return 0.; }
-  double FBMinStripPos(int quadr)    { if(0 <= quadr && quadr < 4) return fFBMinStripPos[quadr];    return 0.; }
-  double BBMaxStripPos(int quadr)    { if(0 <= quadr && quadr < 4) return fBBMaxStripPos[quadr];    return 0.; }
-  double BBMinStripPos(int quadr)    { if(0 <= quadr && quadr < 4) return fBBMinStripPos[quadr];    return 0.; }
-
   bool SmearStrip() { return fSmearStrip; }
   bool IncludeDeadLayers() { return fDeadLayers; }
 
 protected:
-
   int fVerboseLevel;
   
-  double fFBMaxStripPos[4];
-  double fFBMinStripPos[4];
-  double fBBMaxStripPos[4];
-  double fBBMinStripPos[4];
-
   bool fSmearStrip;
   bool fDeadLayers;
 };
