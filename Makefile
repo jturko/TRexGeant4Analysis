@@ -22,7 +22,7 @@ SIM_DIR = ../include
 
 INCLUDE_DIRS = $(SIM_DIR) $(COMM_DIR) $(PWD) $(PWD)/include $(G4INCLUDE)
 
-FILES = Reconstruction Nucleus Compound HitSim Particle Kinematics Settings ParticleMC TransferReaction ReconstructSimDictionary TRexSettings
+FILES = Reconstruction Nucleus Compound HitSim Particle Kinematics ParticleMC ReconstructSimDictionary TRexSettings
 
 O_FILES = $(addsuffix .o, $(addprefix .build/, $(FILES) ) )
 

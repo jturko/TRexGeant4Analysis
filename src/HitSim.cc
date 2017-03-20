@@ -1,6 +1,6 @@
 #include "HitSim.hh"
 
-HitSim::HitSim(Settings* setting) {
+HitSim::HitSim(TRexSettings* setting) {
 	fSett = setting;
 	fRand = new TRandom();
 	Clear();
@@ -177,7 +177,7 @@ TVector3 HitSim::SecondPosition(bool smear) {
 	if(fSecondDirection == kForward) {
 		z = fSett->GetSecondFBarrelDeltaESinglePosZ()[quadr] - fSett->GetSecondFBarrelDeltaESingleLengthY()/2. + strip*fSett->GetSecondFBarrelDeltaESingleStripWidth();
 		//change ring # so that the range isn't 0 - (n-1), but -n/2 - n/2
-		ring -= fSett->GetFBarrelDeltaESingleLengthX()/fSett->GetSecondFBarrelDeltaESingleStripWidth()/2.;
+		ring -= fSett->GetSecondFBarrelDeltaESingleLengthX()/fSett->GetSecondFBarrelDeltaESingleStripWidth()/2.;
 
 		//quadr   0 top   1 lef   2 bot   3 rig
 		//x       +pos    +dtb    -pos    -dtb
@@ -206,7 +206,7 @@ TVector3 HitSim::SecondPosition(bool smear) {
 	} else { // backward
 		z = fSett->GetBBarrelDeltaESinglePosZ()[quadr] + fSett->GetSecondBBarrelDeltaESingleLengthY()/2. - strip*fSett->GetSecondBBarrelDeltaESingleStripWidth();
 		//change ring # so that the range isn't 0 - (n-1), but -n/2 - n/2
-		ring -= fSett->GetBBarrelDeltaESingleLengthX()/fSett->GetSecondBBarrelDeltaESingleStripWidth()/2.;
+		ring -= fSett->GetSecondBBarrelDeltaESingleLengthX()/fSett->GetSecondBBarrelDeltaESingleStripWidth()/2.;
 
 
 		switch(quadr) {
