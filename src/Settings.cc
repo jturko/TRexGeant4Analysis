@@ -20,10 +20,10 @@ void Settings::ReadSettings(const char* filename) {
 	std::cout<<"Reading settings file ..."<<std::endl; 
 
 	TEnv* sett = new TEnv(GetSettingsFile().c_str());
-	fVerboseLevel = sett->GetValue("VerboseLevel",1);
+	fVerboseLevel = sett->GetValue("VerboseLevel", 0);
 
 	fSmearStrip = sett->GetValue("SmearStrip", true);
-	fDeadLayers = sett->GetValue("IncludeDeadLayers",1);
+	fDeadLayers = sett->GetValue("IncludeDeadLayers", true);
 }
 
 void Settings::PrintSettings() {
