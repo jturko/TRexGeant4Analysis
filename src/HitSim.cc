@@ -1,6 +1,6 @@
 #include "HitSim.hh"
 
-HitSim::HitSim(Settings* setting) {
+HitSim::HitSim(TRexSettings* setting) {
 	fSett = setting;
 	fRand = new TRandom();
 	Clear();

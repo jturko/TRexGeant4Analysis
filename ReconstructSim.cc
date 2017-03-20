@@ -7,14 +7,13 @@
 #include "TH2F.h"
 
 #include "CommandLineInterface.hh"
-#include "Settings.hh"
+#include "TRexSettings.hh"
 #include "HitSim.hh"
 #include "ParticleMC.hh"
 #include "Compound.hh"
 #include "Reconstruction.hh"
 #include "Kinematics.hh"
 #include "Particle.hh"
-#include "TransferReaction.hh"
 
 using namespace TMath;
 using namespace std;
@@ -29,29 +28,25 @@ ClassImp(Particle);
 int main(int argc, char* argv[]) {
 	char* InputFile;
 	char* OutputFile = nullptr;
-	char* SettingFile = nullptr;
 	string particleType;
 	bool verbose = false;
 	Long64_t maxEntries = -1;
 	bool writeTree = false;
+	bool dontSmear = false;
 	// command line interface
 	CommandLineInterface* interface = new CommandLineInterface();
 
-	interface->Add("-s", "settings file", &SettingFile);
 	interface->Add("-i", "inputfile (result Root file from simulation)", &InputFile);
 	interface->Add("-o", "outputfile", &OutputFile);
 	interface->Add("-particleType", "p or d", &particleType);
 	interface->Add("-v", "verbose mode", &verbose);
 	interface->Add("-t", "write output tree", &writeTree);
+	interface->Add("-nosmear", "don't smear strips", &dontSmear);
 	interface->Add("-n", "max. # of entries processed", &maxEntries);
 	interface->CheckFlags(argc, argv);
 
 	if(InputFile == nullptr || OutputFile == nullptr) {
 		std::cerr<<"You have to provide at least one input file and the output file!"<<std::endl;
-		return 1;
-	}
-	if(SettingFile == nullptr) {
-		std::cerr<<"You have to provide a settings file!"<<std::endl;
 		return 1;
 	}
 	std::cout<<"input file: "<<InputFile<<std::endl;
@@ -60,22 +55,19 @@ int main(int argc, char* argv[]) {
 	TFile infile(InputFile);
 
 	// load settings file
-	TRexSettings* sim_sett = static_cast<TRexSettings*>(infile.Get("settings"));//new Settings(SettingFile);
-	if(sim_sett == nullptr) {
+	TRexSettings* sett = static_cast<TRexSettings*>(infile.Get("settings"));//new Settings(SettingFile);
+	if(sett == nullptr) {
 		std::cerr<<"Failed to find \"settings\" in \""<<InputFile<<"\": "<<infile.Get("settings")<<std::endl;
 		return 1;
 	}
-	if(verbose) sim_sett->Print();
-
-	Settings* sett = new Settings(*sim_sett);
-	if(verbose) sett->PrintSettings();
-	sett->ReadSettings(SettingFile);
-	if(verbose) sett->PrintSettings();
+	if(verbose) sett->Print();
 
 	std::cout<<"beam N = "<<sett->GetProjectileA()-sett->GetProjectileZ()<<", Z = "<<sett->GetProjectileZ() 
 		<< " on target N = "<<sett->GetTargetA()-sett->GetTargetZ()<<", Z = "<<sett->GetTargetZ()<<std::endl;
 
 	double beamEnergy = sett->GetBeamEnergy(); //initial beam energy (total) in MeV
+
+	bool isSolid = (sett->GetGasTargetLength() == 0.);
 
 	// nStrips are only used for the second layer (which is double-sided), and we assume that forward and backward detectors are the same
 	int nStripsX = static_cast<int>(sett->GetSecondFBarrelDeltaESingleLengthX()/sett->GetSecondFBarrelDeltaESingleStripWidth());
@@ -160,8 +152,6 @@ int main(int argc, char* argv[]) {
 	std::cout<<"recoil "<<recoil->GetSymbol()<<" ("<<recoil->GetA()<<", "<<recoil->GetZ()<<"; "<<recoil->GetMass()<<")"<<std::endl;
 
 	// transfer reaction and kinematics class for Q-value calculation
-	//TransferReaction reaction(*sett);
-	//Kinematics* transferP = new Kinematics(projectile, target, recoil, ejectile, beamEnergy/sett->GetProjectileA(), 0.); //reaction.GetGroundStateTransferP();
 	Kinematics* transferP = new Kinematics(projectile, target, recoil, ejectile, beamEnergy, 0.); //reaction.GetGroundStateTransferP();
 
 	// variables for reconstruction
@@ -340,15 +330,16 @@ int main(int argc, char* argv[]) {
 			}
 
 			//get position of hit in first layer
-			firstposition = hit->FirstPosition(sett->SmearStrip()); 
+			firstposition = hit->FirstPosition(!dontSmear); 
 
 			// get position of hit in second layer
-			secondposition = hit->SecondPosition(sett->SmearStrip());
+			secondposition = hit->SecondPosition(!dontSmear);
 
 			part.Clear();
 
 			// vector between two hits in Siliocn Tracker
-			part.SetPosition(secondposition - firstposition); 
+			if(isSolid) part.SetPosition(firstposition);
+			else        part.SetPosition(secondposition - firstposition); 
 			if(verbose) {
 				cout<<"Position to first hit: "<< firstposition.X()<<"  "<<firstposition.Y()<<"   "<<firstposition.Z()<<endl;
 				cout<<"Position to second hit: "<< secondposition.X()<<"  "<<secondposition.Y()<<"   "<<secondposition.Z()<<endl;
@@ -378,7 +369,9 @@ int main(int argc, char* argv[]) {
 			//update particle information
 
 			// target length at reaction
-			double targetThickEvent = targetThick * ( vertex.Z() - targetBackwardZ ) / targetLength; 
+			double targetThickEvent;
+			if(isSolid) targetThickEvent = targetThick/2.;
+			else        targetThickEvent = targetThick * ( vertex.Z() - targetBackwardZ ) / targetLength; 
 			if(verbose) cout<<"Target Thickness at reaction: "<<targetThickEvent<<" = "<<targetThick<<" * ( "<<vertex.Z()<<" - "<<targetBackwardZ<<" ) / "<<targetLength<<endl;
 
 
