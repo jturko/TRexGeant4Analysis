@@ -197,7 +197,7 @@ int main(int argc, char* argv[]) {
 	TH2F* eVsZ = new TH2F("eVsZ", "recoil energy vs. z", 200, -100., 100., 200, 0, 25000); list.Add(eVsZ);
 	TH2F* eVsZSame = new TH2F("eVsZSame", "recoil energy vs. z, first and second layer both forward or both backward", 200, -100., 100., 200, 0, 25000); list.Add(eVsZSame);
 	TH2F* eVsZCross = new TH2F("eVsZCross", "recoil energy vs. z, first and second layer over cross", 200, -100., 100., 200, 0, 25000); list.Add(eVsZCross);
-	TH2F* eRecESim = new TH2F("eRecESim", "reconstructed energy vs. simulated energy of recoil", 1000, 0, 25000, 1000,0, 25000); list.Add(eRecESim);
+	TH2F* eRecErrVsESim = new TH2F("eRecErrVsESim", "error of reconstructed energy vs. simulated energy of recoil", 1000, 0., 25000., 1000, -5000., 5000.); list.Add(eRecErrVsESim);
 	TH2F* thetaErrorVsZ = new TH2F("thetaErrorVsZ", "Error in #vartheta_{lab} reconstruction vs. simulated z-position;z [mm];#Delta#vartheta_{lab} [^{o}]", 200, -100, 100, 100, -15, 15); list.Add(thetaErrorVsZ);
 	TH2F* thetaErrorVsTheta = new TH2F("thetaErrorVsTheta", "Error in #vartheta_{lab} reconstruction vs. simulated #vartheta_{lab};#vartheta_{lab} [^{o}];#Delta#vartheta_{lab} [^{o}]", 180, 0, 180, 100, -15, 15); list.Add(thetaErrorVsTheta);
 	TH2F* zReactionEnergy = new TH2F("zReactionEnergy", "z position of reaction vs. Beam energy (rec.)", 200, -100, 100, 1000, 0, 1.1*beamEnergy); list.Add(zReactionEnergy);
@@ -205,6 +205,7 @@ int main(int argc, char* argv[]) {
 	TH2F* excEnProtonVsZ = new TH2F("excEnProtonVsZ", "Excitation Energy Spectrum from reconstructed Protons;z [mm];E_{exc} [keV]", 200, -100., 100., 5000, -20000, 20000); list.Add(excEnProtonVsZ);
 	TH2F* excEnProtonVsThetaGS = new TH2F("excEnProtonVsThetaGS", "Excitation Energy Spectrum from reconstructed Protons, ground state only;#vartheta_{lab}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(excEnProtonVsThetaGS);
 	TH2F* excEnProtonVsZGS = new TH2F("excEnProtonVsZGS", "Excitation Energy Spectrum from reconstructed Protons, ground state only;z [mm];E_{exc} [keV]", 200, -100., 100., 5000, -20000, 20000); list.Add(excEnProtonVsZGS);
+	TH2F* excEnProtonVsThetaCm = new TH2F("excEnProtonVsThetaCm", "Excitation Energy Spectrum from reconstructed Protons;#vartheta_{cm}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(excEnProtonVsThetaCm);
 	TH2F* thetaVsZ = new TH2F("thetaVsZ","#vartheta_{lab} vs. z", 200, -100., 100., 180, 0., 180.); list.Add(thetaVsZ);
 	TH2F* thetaVsZSame = new TH2F("thetaVsZSame","#vartheta_{lab} vs. z, first and second layer both forward or both backward", 200, -100., 100., 180, 0., 180.); list.Add(thetaVsZSame);
 	TH2F* thetaVsZCross = new TH2F("thetaVsZCross","#vartheta_{lab} vs. z, first and second layer over cross", 200, -100., 100., 180, 0., 180.); list.Add(thetaVsZCross);
@@ -213,6 +214,8 @@ int main(int argc, char* argv[]) {
 	TH2F* eCmVsZ = new TH2F("eCmVsZ","energy of cm-system vs. z;z [mm];e-cm [GeV]", 200, -100., 100., 2000, transferP->GetCmEnergy(0.)/1000., transferP->GetCmEnergy(beamEnergy)/1000.); list.Add(eCmVsZ);
 	TH2F* betaCmVsZ = new TH2F("betaCmVsZ","#beta of cm-system vs. z", 200, -100., 100., 2000, 0., 0.2); list.Add(betaCmVsZ);
 	TH2F* stripPattern = new TH2F("stripPattern","Parallel strip # (#varphi) vs. perpendicular strip # (#vartheta)", 2*nStripsY, 0., 2.*nStripsY, 4*nStripsX, 0., 4.*nStripsX); list.Add(stripPattern);
+	TH2F* recBeamEnergyErrVsZ = new TH2F("recBeamEnergyErrVsZ","Error in reconstructed beam energy vs. z", 200, -100., 100., 1000, -50., 50.); list.Add(recBeamEnergyErrVsZ);
+	TH2F* thetaCmVsThetaLab = new TH2F("thetaCmVsThetaLab", "#vartheta_{cm} vs. #vartheta_{lab};#vartheta_{cm} [^{o}];#vartheta_{lab} [^{o}]", 180,0.,180., 180,0.,180.); list.Add(thetaCmVsThetaLab);
 
 	Particle part; 
 
@@ -366,7 +369,17 @@ int main(int argc, char* argv[]) {
 				cout <<"Vertex: "<< vertex.X() <<"  "<<vertex.Y() <<"   "<< vertex.Z()<<endl;
 				cout <<"Z from simu: "<< (reactionZSim)<<endl;
 			}
-			//update particle information
+			//cupdate particle information
+			if(vertex.Z() > targetForwardZ) {
+				if(verbose) std::cout<<"Correcting vertex z from "<<vertex.Z();
+				vertex.SetZ(targetForwardZ);
+				if(verbose) std::cout<<" to "<<vertex.Z()<<std::endl;
+			}
+			if(vertex.Z() < targetBackwardZ) {
+				if(verbose) std::cout<<"Correcting vertex z from "<<vertex.Z();
+				vertex.SetZ(targetBackwardZ);
+				if(verbose) std::cout<<" to "<<vertex.Z()<<std::endl;
+			}
 
 			// target length at reaction
 			double targetThickEvent;
@@ -376,7 +389,8 @@ int main(int argc, char* argv[]) {
 
 
 			//calculate target thickness for reconstruction of beam energy
-			beamEnergyRec = energyInTarget->Eval(targetThickEvent)/1000.;
+			if(targetThickEvent > 0) beamEnergyRec = energyInTarget->Eval(targetThickEvent)/1000.;
+			else                     beamEnergyRec = beamEnergy;
 			if(verbose) std::cout<<"Beam Energy at Reaction: "<<beamEnergyRec<<" keV"<<std::endl;
 
 
@@ -400,9 +414,12 @@ int main(int argc, char* argv[]) {
 
 			//transferP->SetEBeam(beamEnergyRec/sett->GetProjectileA());
 			transferP->SetEBeam(beamEnergyRec);
+			transferP->Final(recoilThetaRec/180.*TMath::Pi(), 2, true);
 			double excEnergy = transferP->GetExcEnergy(part.GetReconstructed(), verbose);
+			double recoilThetaCmRec = transferP->GetThetacm(3)/TMath::Pi()*180.;
 			if(verbose) {
 				std::cout<<"beamEnergyRec "<<beamEnergyRec<<" => eex = "<<excEnergy<<" (spline at "<<recoilThetaRec<<" = "<<transferP->Evslab(0., 180., 1.)->Eval(recoilThetaRec)<<", recoilEnergyRec = "<<recoilEnergyRec<<")"<<std::endl;
+				std::cout<<"recoilThetaCmRec = "<<recoilThetaCmRec<<", "<<transferP->GetThetacm(3)<<", "<<transferP->GetThetacm(2)<<", "<<transferP->GetThetacm(1)<<", "<<transferP->GetThetacm(0)<<std::endl;
 			}
 
 			///////////////////////
@@ -413,7 +430,7 @@ int main(int argc, char* argv[]) {
 			hitpattern->Fill(index_first, index_second);
 			originXY->Fill(vertex.X(), vertex.Y());
 			originXYErr->Fill(vertex.X() - reactionXSim, vertex.Y() - reactionYSim);
-			errorOrigin->Fill(reactionZSim,  vertex.Z()-reactionZSim );
+			errorOrigin->Fill(vertex.Z(),  vertex.Z()-reactionZSim );
 			errorThetaPhi->Fill(recoilThetaRec - recoilThetaSim, recoilPhiRec - recoilPhiSim);
 			dE12VsPad->Fill(recoilEnergyRecErest, recoilEnergyRecdE );
 			dE12VsE->Fill(recoilEnergyRec, recoilEnergyRecdE );
@@ -422,12 +439,13 @@ int main(int argc, char* argv[]) {
 			dE1VsdE2->Fill(hit->GetFirstDeltaEEnergy(verbose), hit->GetSecondDeltaEEnergy(verbose));//(firstDeltaE[index_first]->at(0)).GetRear() );
 			eVsTheta->Fill(recoilThetaRec, recoilEnergyRec);
 			eVsZ->Fill(vertex.Z(), recoilEnergyRec);
-			eRecESim->Fill(recoilEnergySim, recoilEnergyRec);
-			thetaErrorVsZ->Fill(reactionZSim, recoilThetaRec - recoilThetaSim);
+			eRecErrVsESim->Fill(recoilEnergySim, recoilEnergyRec - recoilEnergySim);
+			thetaErrorVsZ->Fill(vertex.Z(), recoilThetaRec - recoilThetaSim);
 			thetaErrorVsTheta->Fill(recoilThetaSim , recoilThetaRec - recoilThetaSim);
-			zReactionEnergy->Fill(reactionZSim, beamEnergyRec);
+			zReactionEnergy->Fill(vertex.Z(), beamEnergyRec);
 			excEnProton->Fill(excEnergy);
 			excEnProtonVsTheta->Fill(recoilThetaRec, excEnergy);
+			excEnProtonVsThetaCm->Fill(recoilThetaCmRec, excEnergy);
 			excEnProtonVsZ->Fill(vertex.Z(), excEnergy);
 			if(reactionSim == 0) {
 				excEnProtonVsThetaGS->Fill(recoilThetaRec, excEnergy);
@@ -450,6 +468,8 @@ int main(int argc, char* argv[]) {
 			betaCmVsZ->Fill(vertex.Z(), transferP->GetBetacm());
 			eCmVsZ->Fill(vertex.Z(), transferP->GetCmEnergy()/1000.);
 			stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
+			recBeamEnergyErrVsZ->Fill(vertex.Z(), beamEnergyRec - reactionEnergyBeam);
+			thetaCmVsThetaLab->Fill(recoilThetaRec, recoilThetaCmRec);
 		}   //end of mult = 1 events
 		if(i%1000 == 0){
 			cout<<setw(5)<<std::fixed<<setprecision(1)<<(100.*i)/nEntries<<setprecision(3)<<" % done\r"<<flush;
