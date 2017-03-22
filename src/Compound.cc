@@ -108,7 +108,20 @@ Compound::Compound(const char* symbol) {
 		fFrac[0] = 1;
 
 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 da Molekuel
-	} else {
+	} else if(strstr(symbol,"SolidDeuterium")) {
+		std::cout << "Solid Deuterium!" << std::endl;
+		SetNofElements(1);
+		fNuclei = new Nucleus*[1];
+		fFrac = new double[1];
+
+		fNuclei[0] = new Nucleus(1,1,massfile.c_str());
+
+		fFrac[0] = 1;
+
+		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 da Molekuel
+	} 
+
+	else {
 		std::cerr<<"Compound \""<<symbol<<"\" not implemented yet!"<< std::endl;
 		exit(1);
 	}

@@ -344,8 +344,8 @@ int main(int argc, char* argv[]) {
 			firstposition = hit->FirstPosition(!dontSmear); 
 
 			// get position of hit in second layer
-			if(isSolid) secondposition = hit->SecondPosition(!dontSmear);
-			else        secondposition.SetXYZ(0., 0., 0.);
+			if(!isSolid) secondposition = hit->SecondPosition(!dontSmear);
+			else         secondposition.SetXYZ(0., 0., 0.);
 
 			part.Clear();
 
@@ -408,13 +408,8 @@ int main(int argc, char* argv[]) {
 
 
 			// reconstruct energy of recoil
-			if(silicon_mult_second == 1) {
-				recoilEnergyRecdE    =  hit->GetFirstDeltaEEnergy(verbose) + hit->GetSecondDeltaEEnergy(verbose);
-				recoilEnergyRecErest =  hit->GetPadEnergy();
-			} else {
-				recoilEnergyRecdE    =  hit->GetFirstDeltaEEnergy(verbose);
-				recoilEnergyRecErest =  0.;
-			}
+			recoilEnergyRecdE    =  hit->GetFirstDeltaEEnergy(verbose) + hit->GetSecondDeltaEEnergy(verbose);
+			recoilEnergyRecErest =  hit->GetPadEnergy();
 			recoilEnergyRec = recoilEnergyRecdE + recoilEnergyRecErest;
 			if(verbose && index_first == 0 && index_second == 0) std::cout<<" "<<hit->GetFirstDeltaEEnergy()<<" , "<<hit->GetSecondDeltaEEnergy()<<", "<<hit->GetPadEnergy()<<" => "<<recoilEnergyRecdE<<", "<<recoilEnergyRecErest<<" => "<<recoilEnergyRec<<std::endl;
 			//update particle information
