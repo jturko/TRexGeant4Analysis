@@ -68,7 +68,10 @@ int main(int argc, char* argv[]) {
 	double beamEnergy = sett->GetBeamEnergy(); //initial beam energy (total) in MeV
 
 	bool isSolid = (sett->GetGasTargetLength() == 0.);
-
+	if (verbose) {
+		if (isSolid) cout <<"Using a solid target!"<<endl;
+		else cout <<"Using a gas taget!"<<endl;
+	}
 	// nStrips are only used for the second layer (which is double-sided), and we assume that forward and backward detectors are the same
 	int nStripsX = static_cast<int>(sett->GetSecondFBarrelDeltaESingleLengthX()/sett->GetSecondFBarrelDeltaESingleStripWidth());
 	int nStripsY = static_cast<int>(sett->GetSecondFBarrelDeltaESingleLengthY()/sett->GetSecondFBarrelDeltaESingleStripWidth());
@@ -216,6 +219,9 @@ int main(int argc, char* argv[]) {
 	TH2F* stripPattern = new TH2F("stripPattern","Parallel strip # (#varphi) vs. perpendicular strip # (#vartheta)", 2*nStripsY, 0., 2.*nStripsY, 4*nStripsX, 0., 4.*nStripsX); list.Add(stripPattern);
 	TH2F* recBeamEnergyErrVsZ = new TH2F("recBeamEnergyErrVsZ","Error in reconstructed beam energy vs. z", 200, -100., 100., 1000, -50., 50.); list.Add(recBeamEnergyErrVsZ);
 	TH2F* thetaCmVsThetaLab = new TH2F("thetaCmVsThetaLab", "#vartheta_{cm} vs. #vartheta_{lab};#vartheta_{cm} [^{o}];#vartheta_{lab} [^{o}]", 180,0.,180., 180,0.,180.); list.Add(thetaCmVsThetaLab);
+	TH2F* zErrorVsThetaSim = new TH2F("zErrorVsThetaSim", "Error between reconstructed and true z-position vs. simulated #vartheta_{lab}", 180, 0., 180., 1000, -5, 5); list.Add(zErrorVsThetaSim);
+	TH2F* zErrorVsThetaRec = new TH2F("zErrorVsThetaRec", "Error between reconstructed and true z-position vs. reconstructed #vartheta_{lab}", 180, 0., 180., 1000, -5, 5); list.Add(zErrorVsThetaRec);
+	TH2F* zErrorVsthetaError = new TH2F("zErrorVstheaError", "z Erorr vs error in theta", 200, -10., 10., 1000, -5., 5.); list.Add(zErrorVsthetaError);
 
 	Particle part; 
 
@@ -302,7 +308,7 @@ int main(int argc, char* argv[]) {
 			std::cout<<")"<<std::endl;
 		}
 
-		if(silicon_mult_first == 1 && silicon_mult_second == 1) { 
+		if(silicon_mult_first == 1 && (silicon_mult_second == 1 || isSolid)) { 
 			if(firstDeltaE[0]->size() == 1 ) {
 				hit->SetFirstDeltaE(firstDeltaE[0]->at(0), kForward);
 				index_first = 0;
@@ -314,20 +320,22 @@ int main(int argc, char* argv[]) {
 			if(secondDeltaE[0]->size() == 1 ) {
 				hit->SetSecondDeltaE(secondDeltaE[0]->at(0), kForward);
 				index_second = 0;
-			} else {
+			} else if(secondDeltaE[1]->size() == 1) {
 				hit->SetSecondDeltaE(secondDeltaE[1]->at(0), kBackward);
 				index_second = 1;
 			}
 
-			if(pad[index_second]->size() == 1 ) {
-				hit->SetPad(pad[index_second]->at(0));
-			}
+			if(silicon_mult_second == 1) {
+				if(pad[index_second]->size() == 1 ) {
+					hit->SetPad(pad[index_second]->at(0));
+				}
 
-			if(verbose) {
-				std::cout<<"Using pad "<<index_second<<" with "<<pad[index_second]->size()<<" detectors"<<std::endl;
-				for(int p = 0; p < 2; ++p) {
-					for(size_t d = 0; d < pad[p]->size(); ++d) {
-						std::cout<<p<<": pad "<<pad[p]->at(d).GetID()<<" = "<<pad[p]->at(d).GetEdet()<<" keV / "<<pad[p]->at(d).GetRear()<<" keV"<<std::endl;
+				if(verbose) {
+					std::cout<<"Using pad "<<index_second<<" with "<<pad[index_second]->size()<<" detectors"<<std::endl;
+					for(int p = 0; p < 2; ++p) {
+						for(size_t d = 0; d < pad[p]->size(); ++d) {
+							std::cout<<p<<": pad "<<pad[p]->at(d).GetID()<<" = "<<pad[p]->at(d).GetEdet()<<" keV / "<<pad[p]->at(d).GetRear()<<" keV"<<std::endl;
+						}
 					}
 				}
 			}
@@ -336,7 +344,8 @@ int main(int argc, char* argv[]) {
 			firstposition = hit->FirstPosition(!dontSmear); 
 
 			// get position of hit in second layer
-			secondposition = hit->SecondPosition(!dontSmear);
+			if(!isSolid) secondposition = hit->SecondPosition(!dontSmear);
+			else         secondposition.SetXYZ(0., 0., 0.);
 
 			part.Clear();
 
@@ -358,18 +367,22 @@ int main(int argc, char* argv[]) {
 			if(verbose) std::cout<<recoilPhiRec<<" - "<<recoilPhiSim<<" = "<<(recoilPhiRec - recoilPhiSim)<<std::endl;
 
 
-			//find the closest point between beam axis and vector of the two hits in the silicon tracker
-			TVector3 r = part.GetPosition();  //relative vector from first hit to second hit
-			TVector3 r2 = secondposition;     // vector to second hit
 			TVector3 vertex;                   //reconstructed vertex
-			double t = 0;                          //line parameter to calculate vertex; temp use only
-			if((r*r - r.Z()*r.Z()) != 0 ) t = (r2*r - (r2.Z()*r.Z()))/(r*r - r.Z()*r.Z());
-			vertex = r2 -( t*r); 
+			if(!isSolid) {
+				//find the closest point between beam axis and vector of the two hits in the silicon tracker
+				TVector3 r = part.GetPosition();  //relative vector from first hit to second hit
+				TVector3 r2 = secondposition;     // vector to second hit
+				double t = 0;                          //line parameter to calculate vertex; temp use only
+				if((r*r - r.Z()*r.Z()) != 0 ) t = (r2*r - (r2.Z()*r.Z()))/(r*r - r.Z()*r.Z());
+				vertex = r2 -( t*r); 
+			} else {
+				vertex.SetXYZ(0., 0., (targetForwardZ + targetBackwardZ)/2.); // middle of target
+			}
 			if(verbose) {
 				cout <<"Vertex: "<< vertex.X() <<"  "<<vertex.Y() <<"   "<< vertex.Z()<<endl;
 				cout <<"Z from simu: "<< (reactionZSim)<<endl;
 			}
-			//cupdate particle information
+			//update particle information
 			if(vertex.Z() > targetForwardZ) {
 				if(verbose) std::cout<<"Correcting vertex z from "<<vertex.Z();
 				vertex.SetZ(targetForwardZ);
@@ -395,8 +408,8 @@ int main(int argc, char* argv[]) {
 
 
 			// reconstruct energy of recoil
-			recoilEnergyRecErest =  hit->GetPadEnergy();//(firstDeltaE[index_first]->at(0)).GetEdet() ;
-			recoilEnergyRecdE    =  hit->GetFirstDeltaEEnergy(verbose) + hit->GetSecondDeltaEEnergy(verbose); //(firstDeltaE[index_first]->at(0)).GetRear()+ (secondDeltaE[index_second]->at(0)).GetRear() ;
+			recoilEnergyRecdE    =  hit->GetFirstDeltaEEnergy(verbose) + hit->GetSecondDeltaEEnergy(verbose);
+			recoilEnergyRecErest =  hit->GetPadEnergy();
 			recoilEnergyRec = recoilEnergyRecdE + recoilEnergyRecErest;
 			if(verbose && index_first == 0 && index_second == 0) std::cout<<" "<<hit->GetFirstDeltaEEnergy()<<" , "<<hit->GetSecondDeltaEEnergy()<<", "<<hit->GetPadEnergy()<<" => "<<recoilEnergyRecdE<<", "<<recoilEnergyRecErest<<" => "<<recoilEnergyRec<<std::endl;
 			//update particle information
@@ -467,9 +480,10 @@ int main(int argc, char* argv[]) {
 			}
 			betaCmVsZ->Fill(vertex.Z(), transferP->GetBetacm());
 			eCmVsZ->Fill(vertex.Z(), transferP->GetCmEnergy()/1000.);
-			stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
+			if(silicon_mult_second) stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
 			recBeamEnergyErrVsZ->Fill(vertex.Z(), beamEnergyRec - reactionEnergyBeam);
 			thetaCmVsThetaLab->Fill(recoilThetaRec, recoilThetaCmRec);
+			zErrorVsthetaError->Fill(recoilThetaRec - recoilThetaSim, vertex.Z() - reactionZSim);
 		}   //end of mult = 1 events
 		if(i%1000 == 0){
 			cout<<setw(5)<<std::fixed<<setprecision(1)<<(100.*i)/nEntries<<setprecision(3)<<" % done\r"<<flush;
