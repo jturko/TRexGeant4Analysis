@@ -191,7 +191,7 @@ void Kinematics::FinalCm(){
 void Kinematics::Final(double angle, int part, bool upper){             //angle of proton in lab system
 	if(angle>GetMaxAngle(fVcm[part])){
 		SetAngles(0, part);
-		std::cout<<"Final, angle = "<<angle<<" > MaxAngle = "<<GetMaxAngle(fVcm[part])<<std::endl;
+		//std::cout<<"Final, angle = "<<angle<<" > MaxAngle = "<<GetMaxAngle(fVcm[part])<<std::endl;
 	} else {
 		// changed by S.Klupp
 		//SetAngles(angle, part); 
