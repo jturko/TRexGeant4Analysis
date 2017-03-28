@@ -14,12 +14,12 @@ Compound::Compound(const char* symbol) {
 		exit(1);
 	}
 	fSymbol = symbol;
+	fDensity = 1.;
 	if(strstr(symbol,"PE")) {
 		std::cout << "Polyethylene!" << std::endl;
 		//H4C2
-		SetNofElements(2);
-		fNuclei = new Nucleus*[2];
-		fFrac = new double[2];
+		fNuclei.resize(2);
+		fFrac.resize(2);
 
 		fNuclei[0] = new Nucleus(1,0,massfile.c_str());
 		fNuclei[1] = new Nucleus(6,6,massfile.c_str());
@@ -28,12 +28,12 @@ Compound::Compound(const char* symbol) {
 		fFrac[1] = 2.*fNuclei[1]->GetMass()/(4.*fNuclei[0]->GetMass() + 2.*fNuclei[1]->GetMass());
 
 		fMass = fNuclei[0]->GetMass()*4. + fNuclei[1]->GetMass()*2.;
+		fDensity = 0.94; // from Geant4
 	} else if(strstr(symbol,"DPE")) {
 		std::cout << "deuterated Polyethylene!" << std::endl;
 		//D4C2
-		SetNofElements(2);
-		fNuclei = new Nucleus*[2];
-		fFrac = new double[2];
+		fNuclei.resize(2);
+		fFrac.resize(2);
 
 		fNuclei[0] = new Nucleus(1,1,massfile.c_str());
 		fNuclei[1] = new Nucleus(6,6,massfile.c_str());
@@ -42,12 +42,12 @@ Compound::Compound(const char* symbol) {
 		fFrac[1] = 2.*fNuclei[1]->GetMass()/(4.*fNuclei[0]->GetMass() + 2.*fNuclei[1]->GetMass());
 
 		fMass = fNuclei[0]->GetMass()*4. + fNuclei[1]->GetMass()*2.;
+		fDensity = 1.06; //found in a paper. Assuming same density of molecules, the density of 0.94 for PE would correspond to 1.074 for DPE (0.94*32/28).
 	} else if(strstr(symbol,"MY")) {
 		std::cout << "Mylar!" << std::endl;
 		//H8C10O4
-		SetNofElements(3);
-		fNuclei = new Nucleus*[3];
-		fFrac = new double[3];
+		fNuclei.resize(3);
+		fFrac.resize(3);
 
 		fNuclei[0] = new Nucleus(1,0,massfile.c_str());
 		fNuclei[1] = new Nucleus(6,6,massfile.c_str());
@@ -58,6 +58,7 @@ Compound::Compound(const char* symbol) {
 		fFrac[2] = 4.*fNuclei[2]->GetMass()/(8.*fNuclei[0]->GetMass() + 10.*fNuclei[1]->GetMass() + 4.*fNuclei[2]->GetMass());
 
 		fMass = fNuclei[0]->GetMass()*8. + fNuclei[1]->GetMass()*10. + fNuclei[2]->GetMass()*4.;
+		fDensity = 1.4; // from Geant4
 	} else if(strstr(symbol,"TTI")) {
 		std::cout << "Tritiated Titanium Target!" << std::endl;
 		// ratioTTI = atomic ratio Tritium/Titanium
@@ -67,17 +68,16 @@ Compound::Compound(const char* symbol) {
 		} else{
 			double ratio = atof(symbol);
 			//std::cout << ratio << std::endl;
-			SetNofElements(2);
-			fNuclei = new Nucleus*[2];
-			fFrac = new double[2];
+			fNuclei.resize(2);
+			fFrac.resize(2);
 			//     std::cout << "fFrac " << fFrac << std::endl;
 			fNuclei[0] = new Nucleus(1,2,massfile.c_str());
 			fNuclei[1] = new Nucleus(18,26,massfile.c_str());
 			fFrac[0] = ratio*fNuclei[0]->GetMass()/(ratio*fNuclei[0]->GetMass()+fNuclei[1]->GetMass());
 			fFrac[1] = fNuclei[1]->GetMass()/(ratio*fNuclei[0]->GetMass()+fNuclei[1]->GetMass());
 			fMass = fNuclei[0]->GetMass()*ratio + fNuclei[1]->GetMass();
+			fDensity = 4.506; // titanium density
 		}
-
 	} else if(strstr(symbol,"DTI")) {
 		//std::cout << "Deuterated Titanium Target!" << std::endl;
 		if(isalpha(symbol[0])) {
@@ -86,9 +86,8 @@ Compound::Compound(const char* symbol) {
 		} else{
 			double ratio = atof(symbol);
 			std::cout << ratio << std::endl;
-			SetNofElements(2);
-			fNuclei = new Nucleus*[2];
-			fFrac = new double[2];
+			fNuclei.resize(2);
+			fFrac.resize(2);
 
 			fNuclei[0] = new Nucleus(1,1,massfile.c_str());
 			fFrac[0] = ratio/(1+ratio);
@@ -96,29 +95,30 @@ Compound::Compound(const char* symbol) {
 			fFrac[1] = 1/(1+ratio);
 
 			fMass = fNuclei[0]->GetMass()*fFrac[0] + fNuclei[1]->GetMass()*fFrac[1];
+			fDensity = 4.506; // titanium density
 		}
 	} else if(strstr(symbol,"2H")) {
 		std::cout << "DeuteriumGas!" << std::endl;
-		SetNofElements(1);
-		fNuclei = new Nucleus*[1];
-		fFrac = new double[1];
+		fNuclei.resize(1);
+		fFrac.resize(1);
 
 		fNuclei[0] = new Nucleus(1,1,massfile.c_str());
 
 		fFrac[0] = 1;
 
-		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 da Molekuel
+		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
+		//density depends on pressure, so user will need to use SetDensity
 	} else if(strstr(symbol,"SolidDeuterium")) {
 		std::cout << "Solid Deuterium!" << std::endl;
-		SetNofElements(1);
-		fNuclei = new Nucleus*[1];
-		fFrac = new double[1];
+		fNuclei.resize(1);
+		fFrac.resize(1);
 
 		fNuclei[0] = new Nucleus(1,1,massfile.c_str());
 
 		fFrac[0] = 1;
 
-		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 da Molekuel
+		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
+		fDensity = 0.1967;
 	} 
 
 	else {
@@ -128,12 +128,11 @@ Compound::Compound(const char* symbol) {
 }
 
 Compound::Compound(Nucleus* target) {
-	SetNofElements(1);
-	fNuclei = new Nucleus*[1];
-	fFrac = new double[1];
+	fNuclei.resize(1);
+	fFrac.resize(1);
 	fNuclei[0] = target;
 	fFrac[0] = 1;
-
+	fDensity = 1.;
 }
 
 Compound::~Compound() {
@@ -150,17 +149,13 @@ Compound::~Compound() {
 	//   delete[] fSymbol;
 }
 
-Nucleus* Compound::GetNucleus(int i) {
-	if(i<GetNofElements())
-		return fNuclei[i];
-	else
-		return NULL;
+Nucleus* Compound::GetNucleus(size_t i) {
+	if(i < fNuclei.size()) return fNuclei[i];
+	else		              return NULL;
 }
 
-double Compound::GetFrac(int i) {
+double Compound::GetFrac(size_t i) {
 	// std::cout << "i" << i << "GetNofElements()" << GetNofElements() << std::endl;
-	if(i<GetNofElements())
-		return fFrac[i];
-	else
-		return 0;
+	if(i < fFrac.size())	return fFrac[i];
+	else           		return 0;
 }
