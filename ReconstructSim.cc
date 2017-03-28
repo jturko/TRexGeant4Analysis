@@ -69,8 +69,8 @@ int main(int argc, char* argv[]) {
 
 	bool isSolid = (sett->GetGasTargetLength() == 0.);
 	if (verbose) {
-		if (isSolid) cout <<"Using a solid target!"<<endl;
-		else cout <<"Using a gas taget!"<<endl;
+		if(isSolid) cout<<"Using a solid target!"<<endl;
+		else        cout<<"Using a gas taget!"<<endl;
 	}
 	// nStrips are only used for the second layer (which is double-sided), and we assume that forward and backward detectors are the same
 	int nStripsX = static_cast<int>(sett->GetSecondFBarrelDeltaESingleLengthX()/sett->GetSecondFBarrelDeltaESingleStripWidth());
@@ -138,10 +138,18 @@ int main(int argc, char* argv[]) {
 	// set massfile
 	const char* massfile = sett->GetMassFile().c_str();
 	std::cout<<"Mass file "<<massfile<<std::endl;
-	//set Compounds
 
+	//set Compounds for now we always assume density of H2 = 0.180e-3 at 1 bar
 	if(verbose) std::cout<<"creating compound \""<<sett->GetTargetMaterialName().c_str()<<"\""<<std::endl;
 	Compound* targetMat = new Compound(sett->GetTargetMaterialName().c_str());
+	if(!isSolid) targetMat->SetDensity(0.180e-3*sett->GetTargetPressure()/6.24151e+08); // internal geant4 units are such that 1 bar = 6.24151e+08 whatevers
+	std::cout<<"set target material density to "<<0.180e-3*sett->GetTargetPressure()/6.24151e+08<<" = "<<targetMat->GetDensity()<<std::endl;
+	if(verbose) std::cout<<"creating compound \"MY\""<<std::endl;
+	Compound* foilMat = new Compound("MY");
+	if(verbose) std::cout<<"creating compound \""<<sett->GetVacuumChamberGas().c_str()<<"\""<<std::endl;
+	Compound* chamberGasMat = new Compound(sett->GetVacuumChamberGas().c_str());
+	chamberGasMat->SetDensity(0.180e-3*sett->GetVacuumChamberGasPressure()/6.24151e+08); // internal geant4 units are such that 1 bar = 6.24151e+08 whatevers
+	std::cout<<"set chamber gas density to "<<0.180e-3*sett->GetVacuumChamberGasPressure()/6.24151e+08<<" = "<<chamberGasMat->GetDensity()<<std::endl;
 
 	// 1n transfer
 	Nucleus* projectile = new Nucleus(sett->GetProjectileZ(), sett->GetProjectileA() - sett->GetProjectileZ(),   massfile);
@@ -166,18 +174,46 @@ int main(int argc, char* argv[]) {
 	double recoilThetaRec;
 	double recoilPhiRec;
 
-	double targetThick     = sett->GetTargetThicknessMgPerCm2();
+	double targetThickness = sett->GetTargetThicknessMgPerCm2();
 	double targetLength    = sett->GetTargetPhysicalLength();
 	double targetForwardZ  =   targetLength/2.;
 	double targetBackwardZ = - targetLength/2.;
 	if(verbose) { 
-		cout <<"Target Thickness from Input File: "<< targetThick<<endl;
+		cout <<"Target Thickness from Input File: "<< targetThickness<<endl;
 		cout <<"Target ForwardZ from Input File: "<< targetForwardZ<<endl;
 		cout <<"Target BackwardZ from Input File: "<< targetBackwardZ<<endl;
 		cout <<"Target Length from Input File: "<< targetLength<<endl;
 	}
-	TSpline3* energyInTarget = beamTarget->Thickness2EnergyAfter(beamEnergy, targetThick, targetThick/1000., true);
+	TSpline3* energyInTarget = beamTarget->Thickness2EnergyAfter(beamEnergy, targetThickness, targetThickness/1000., true);
 	energyInTarget->Write("energyInTarget");
+
+	// variables for recoil energy loss reconstruction (assuming max. recoil energy of 100 MeV!!!)
+	Reconstruction* recoilTarget = new Reconstruction(recoil, targetMat);
+	Reconstruction* recoilFoil = new Reconstruction(recoil, foilMat);
+	Reconstruction* recoilChamberGas = new Reconstruction(recoil, chamberGasMat);
+	TSpline3* recoilTargetRange  = recoilTarget->Energy2Range(100., 0.1, !isSolid);
+	TSpline3* recoilTargetEnergy = recoilTarget->Range2Energy(100., 0.1, !isSolid);
+	TSpline3* recoilFoilRange  = recoilFoil->Energy2Range(100., 0.1, false);
+	TSpline3* recoilFoilEnergy = recoilFoil->Range2Energy(100., 0.1, false);
+	TSpline3* recoilChamberGasRange  = recoilChamberGas->Energy2Range(100., 0.1, true);
+	TSpline3* recoilChamberGasEnergy = recoilChamberGas->Range2Energy(100., 0.1, true);
+
+	double foilDistance = sett->GetFBarrelDeltaESingleDistanceToBeam()[0] - 3.; // there seems to be a hard-coded distance of three mm between foil and detector
+	double firstLayerDistance = sett->GetFBarrelDeltaESingleDistanceToBeam()[0];
+	double secondLayerDistance = sett->GetSecondFBarrelDeltaESingleDistanceToBeam()[0];
+	double padDistance = sett->GetFBarrelErestSingleDistanceToBeam()[0];
+
+	double targetWidthMgCm2 = foilDistance*100.*targetMat->GetDensity();// convert from mm to 10 um, and from there to mg/cm2 using density
+	double foilThicknessMgCm2 = sett->GetFBarrelDeltaESingleFoilThickness()*100.*1.4;// convert from mm to 10 um, and from there to mg/cm2 using density 1.4 g/cm3
+	double firstGasLayerThicknessMgCm2 = 300.*chamberGasMat->GetDensity(); // distance between foil and 1. layer hard-coded to 3 mm
+	double secondGasLayerThicknessMgCm2 = (secondLayerDistance - firstLayerDistance)*100.*chamberGasMat->GetDensity(); // distance 1. and 2. layer in 10 um and converted to mg/cm2 using density
+	double thirdGasLayerThicknessMgCm2 = (padDistance - secondLayerDistance)*100.*chamberGasMat->GetDensity(); // distance 2. layer and pad in 10 um and converted to mg/cm2 using density
+
+	std::cout<<"foil distance "<<foilDistance<<" mm => target width = "<<targetWidthMgCm2<<" mg/cm^2"<<std::endl;
+	std::cout<<"foil thickness "<<sett->GetFBarrelDeltaESingleFoilThickness()<<" mm = "<<targetWidthMgCm2<<" mg/cm^2"<<std::endl;
+	std::cout<<"distance foil - 1. layer 3. mm => 1. gas layer thickness = "<<firstGasLayerThicknessMgCm2<<" mg/cm^2"<<std::endl;
+	std::cout<<"distance 1. layer - 2. layer "<<secondLayerDistance - firstLayerDistance<<" mm => 2. gas layer thickness = "<<secondGasLayerThicknessMgCm2<<" mg/cm^2"<<std::endl;
+	std::cout<<"distance 2. layer - pad "<<padDistance - secondLayerDistance<<" mm => 3. gas layer thickness = "<<thirdGasLayerThicknessMgCm2<<" mg/cm^2"<<std::endl;
 
 	// Define Histograms
 	TList list;
@@ -205,6 +241,7 @@ int main(int argc, char* argv[]) {
 	TH2F* thetaErrorVsTheta = new TH2F("thetaErrorVsTheta", "Error in #vartheta_{lab} reconstruction vs. simulated #vartheta_{lab};#vartheta_{lab} [^{o}];#Delta#vartheta_{lab} [^{o}]", 180, 0, 180, 100, -15, 15); list.Add(thetaErrorVsTheta);
 	TH2F* zReactionEnergy = new TH2F("zReactionEnergy", "z position of reaction vs. Beam energy (rec.)", 200, -100, 100, 1000, 0, 1.1*beamEnergy); list.Add(zReactionEnergy);
 	TH2F* excEnProtonVsTheta = new TH2F("excEnProtonVsTheta", "Excitation Energy Spectrum from reconstructed Protons;#vartheta_{lab}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(excEnProtonVsTheta);
+	TH2F* excEnProtonVsPhi = new TH2F("excEnProtonVsPhi", "Excitation Energy Spectrum from reconstructed Protons;#varphi_{lab}[^{o}];E_{exc} [keV]", 360, -180., 180., 5000, -20000, 20000); list.Add(excEnProtonVsPhi);
 	TH2F* excEnProtonVsZ = new TH2F("excEnProtonVsZ", "Excitation Energy Spectrum from reconstructed Protons;z [mm];E_{exc} [keV]", 200, -100., 100., 5000, -20000, 20000); list.Add(excEnProtonVsZ);
 	TH2F* excEnProtonVsThetaGS = new TH2F("excEnProtonVsThetaGS", "Excitation Energy Spectrum from reconstructed Protons, ground state only;#vartheta_{lab}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(excEnProtonVsThetaGS);
 	TH2F* excEnProtonVsZGS = new TH2F("excEnProtonVsZGS", "Excitation Energy Spectrum from reconstructed Protons, ground state only;z [mm];E_{exc} [keV]", 200, -100., 100., 5000, -20000, 20000); list.Add(excEnProtonVsZGS);
@@ -222,6 +259,16 @@ int main(int argc, char* argv[]) {
 	TH2F* zErrorVsThetaSim = new TH2F("zErrorVsThetaSim", "Error between reconstructed and true z-position vs. simulated #vartheta_{lab}", 180, 0., 180., 1000, -5, 5); list.Add(zErrorVsThetaSim);
 	TH2F* zErrorVsThetaRec = new TH2F("zErrorVsThetaRec", "Error between reconstructed and true z-position vs. reconstructed #vartheta_{lab}", 180, 0., 180., 1000, -5, 5); list.Add(zErrorVsThetaRec);
 	TH2F* zErrorVsthetaError = new TH2F("zErrorVstheaError", "z Erorr vs error in theta", 200, -10., 10., 1000, -5., 5.); list.Add(zErrorVsthetaError);
+	TH2F* elossVsTheta = new TH2F("elossVsTheta", "reconstructed energy loss vs. #vartheta;#vartheta_lab [^{o}];energy loss [keV]", 180, 0., 180., 1000, -10000., 10000.); list.Add(elossVsTheta);
+	TH2F* elossVsPhi = new TH2F("elossVsPhi", "reconstructed energy loss vs. #varphi;#varphi_lab [^{o}];energy loss [keV]", 360, -180., 180., 1000, -10000., 10000.); list.Add(elossVsPhi);
+	TH2F* excEnElossVsTheta = new TH2F("excEnElossVsTheta", "Excitation Energy Spectrum from reconstructed energy loss;#vartheta_{lab}[^{o}];E_{exc} [keV]", 180, 0., 180., 5000, -20000, 20000); list.Add(excEnElossVsTheta);
+	UInt_t nofLevels = trGen->GetMaximum("reaction")+1;
+	if(nofLevels < 1) nofLevels = 1;
+	if(nofLevels > 10) nofLevels = 10;
+	std::vector<TH2F*> excEnElossVsThetaLevel(nofLevels);
+	for(size_t r = 0; r < nofLevels; ++r) {
+		excEnElossVsThetaLevel[r] = new TH2F(Form("excEnElossVsThetaLevel_%d",static_cast<int>(r)), Form("Excitation Energy Spectrum from reconstructed energy loss for level %d;#vartheta_{lab}[^{o}];E_{exc} [keV]",static_cast<int>(r)), 180, 0., 180., 5000, -20000, 20000); list.Add(excEnElossVsThetaLevel[r]);
+	}
 
 	Particle part; 
 
@@ -230,17 +277,20 @@ int main(int argc, char* argv[]) {
 	std::cout<<"beam energy at front/middle/back of target: "<<beamEnergy<<"/";
 	//transferP->SetEBeam(beamEnergy/sett->GetProjectileA());
 	transferP->SetEBeam(beamEnergy);
-	transferP->Evslab(0., 180., 1.)->Write("RecoilEVsThetaLabFront");
+	TSpline3* front = transferP->Evslab(0., 180., 1.);
+	front->Write("RecoilEVsThetaLabFront");
 	//std::cout<<beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA()<<"/";
-	std::cout<<energyInTarget->Eval(targetThick/2.)/1000.<<"/";
+	std::cout<<energyInTarget->Eval(targetThickness/2.)/1000.<<"/";
 	//transferP->SetEBeam(beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA());
-	transferP->SetEBeam(energyInTarget->Eval(targetThick/2.)/1000.);
-	transferP->Evslab(0., 180., 1.)->Write("RecoilEVsThetaLabMiddle");
+	transferP->SetEBeam(energyInTarget->Eval(targetThickness/2.)/1000.);
+	TSpline3* middle = transferP->Evslab(0., 180., 1.);
+	middle->Write("RecoilEVsThetaLabMiddle");
 	//std::cout<<beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA()<<std::endl;
-	std::cout<<energyInTarget->Eval(targetThick)/1000.<<std::endl;
+	std::cout<<energyInTarget->Eval(targetThickness)/1000.<<std::endl;
 	//transferP->SetEBeam(beamTarget->EnergyAfter(beamEnergy, -3, true)/sett->GetProjectileA());
-	transferP->SetEBeam(energyInTarget->Eval(targetThick)/1000.);
-	transferP->Evslab(0., 180., 1.)->Write("RecoilEVsThetaLabBack");
+	transferP->SetEBeam(energyInTarget->Eval(targetThickness)/1000.);
+	TSpline3* back = transferP->Evslab(0., 180., 1.);
+	back->Write("RecoilEVsThetaLabBack");
 
 	/************************************************************************************************************
 	 * loop over all entries
@@ -396,15 +446,15 @@ int main(int argc, char* argv[]) {
 
 			// target length at reaction
 			double targetThickEvent;
-			if(isSolid) targetThickEvent = targetThick/2.;
-			else        targetThickEvent = targetThick * ( vertex.Z() - targetBackwardZ ) / targetLength; 
-			if(verbose) cout<<"Target Thickness at reaction: "<<targetThickEvent<<" = "<<targetThick<<" * ( "<<vertex.Z()<<" - "<<targetBackwardZ<<" ) / "<<targetLength<<endl;
+			if(isSolid) targetThickEvent = targetThickness/2.;
+			else        targetThickEvent = targetThickness * ( vertex.Z() - targetBackwardZ ) / targetLength; 
+			if(verbose) cout<<"Target Thickness at reaction: "<<targetThickEvent<<" = "<<targetThickness<<" * ( "<<vertex.Z()<<" - "<<targetBackwardZ<<" ) / "<<targetLength<<endl;
 
 
 			//calculate target thickness for reconstruction of beam energy
 			if(targetThickEvent > 0) beamEnergyRec = energyInTarget->Eval(targetThickEvent)/1000.;
 			else                     beamEnergyRec = beamEnergy;
-			if(verbose) std::cout<<"Beam Energy at Reaction: "<<beamEnergyRec<<" keV"<<std::endl;
+			if(verbose) std::cout<<"Beam Energy at Reaction: "<<beamEnergyRec<<" MeV"<<std::endl;
 
 
 			// reconstruct energy of recoil
@@ -412,8 +462,51 @@ int main(int argc, char* argv[]) {
 			recoilEnergyRecErest =  hit->GetPadEnergy();
 			recoilEnergyRec = recoilEnergyRecdE + recoilEnergyRecErest;
 			if(verbose && index_first == 0 && index_second == 0) std::cout<<" "<<hit->GetFirstDeltaEEnergy()<<" , "<<hit->GetSecondDeltaEEnergy()<<", "<<hit->GetPadEnergy()<<" => "<<recoilEnergyRecdE<<", "<<recoilEnergyRecErest<<" => "<<recoilEnergyRec<<std::endl;
-			//update particle information
-			// TODO: reconstruct energy loss in gas and foil !!
+			// reconstruct energy loss in gas and foil
+			double sinTheta = TMath::Sin(recoilThetaRec/180.*TMath::Pi());
+			double cosTheta = TMath::Cos(recoilThetaRec/180.*TMath::Pi());
+			double tmpPhi = recoilPhiRec; while(tmpPhi > 45.) tmpPhi -= 90.; while(tmpPhi < -45.) tmpPhi += 90.;
+			double cosPhi   = TMath::Cos(tmpPhi/180.*TMath::Pi());
+			double recoilEnergyRecEloss;
+
+			if(isSolid) {
+				//for the solid target we only need to reconstruct the energy loss in the foil and the target (no chamber gas)
+				double range = recoilFoilRange->Eval(recoilEnergyRec);
+				recoilEnergyRecEloss = recoilFoilEnergy->Eval(range + foilThicknessMgCm2/(sinTheta*cosPhi));
+				range = recoilTargetRange->Eval(recoilEnergyRecEloss);
+				recoilEnergyRecEloss = recoilTargetEnergy->Eval(range + targetThickness/2./TMath::Abs(cosTheta));
+			} else {
+				// need to reconstruct energy loss in chamber gas, foil, and target
+				double range;
+				if(verbose) std::cout<<"theta "<<recoilThetaRec<<", phi "<<recoilPhiRec<<" (sinTheta "<<sinTheta<<", cosTheta "<<cosTheta<<", cosPhi "<<cosPhi<<"): ";
+				if(recoilEnergyRecErest > 0. ) {
+					if(verbose) std::cout<<"from pad "<<recoilEnergyRecErest<<" through "<<(padDistance - secondLayerDistance)/(sinTheta*cosPhi)<<" mm gas ";
+					range = recoilChamberGasRange->Eval(recoilEnergyRecErest);
+					recoilEnergyRecEloss = recoilChamberGasEnergy->Eval(range + thirdGasLayerThicknessMgCm2/(sinTheta*cosPhi)) + hit->GetSecondDeltaEEnergy(verbose);
+					range = recoilChamberGasRange->Eval(recoilEnergyRecEloss);
+				} else {
+					range = recoilChamberGasRange->Eval(hit->GetSecondDeltaEEnergy(verbose));
+				}
+				if(verbose) std::cout<<" with 2. layer "<<hit->GetSecondDeltaEEnergy(verbose)<<" ("<<recoilEnergyRecEloss<<") through "<<(secondLayerDistance - firstLayerDistance)/(sinTheta*cosPhi)<<" mm gas ";
+				recoilEnergyRecEloss = recoilChamberGasEnergy->Eval(range + secondGasLayerThicknessMgCm2/(sinTheta*cosPhi)) + hit->GetFirstDeltaEEnergy(verbose);
+				// for now the foil is box-shaped as well, so we can just continue the same way
+				if(verbose) std::cout<<" with 1. layer "<<hit->GetFirstDeltaEEnergy(verbose)<<" ("<<recoilEnergyRecEloss<<") through "<<(firstLayerDistance - foilDistance)/(sinTheta*cosPhi)<<" mm gas ";
+				range = recoilChamberGasRange->Eval(recoilEnergyRecEloss);
+				recoilEnergyRecEloss = recoilChamberGasEnergy->Eval(range + firstGasLayerThicknessMgCm2/(sinTheta*cosPhi));
+				if(verbose) std::cout<<" at "<<recoilEnergyRecEloss<<" through "<<foilThicknessMgCm2/(sinTheta*cosPhi)<<" mm foil ";
+				range = recoilFoilRange->Eval(recoilEnergyRec);
+				recoilEnergyRecEloss = recoilFoilEnergy->Eval(range + foilThicknessMgCm2/(sinTheta*cosPhi));
+				//std::cout<<recoilEnergyRec<<", "<<range<<" + "<<foilThicknessMgCm2/(sinTheta*cosPhi)<<" => "<<recoilEnergyRecEloss<<std::endl;
+				// for now assume that the "box" inside the foil is filled with target gas
+				if(verbose) std::cout<<" at "<<recoilEnergyRecEloss<<" through "<<targetWidthMgCm2/(sinTheta*cosPhi)<<" mm gas ";
+				range = recoilTargetRange->Eval(recoilEnergyRecEloss);
+				//std::cout<<recoilEnergyRecEloss<<", "<<range<<" + "<<targetWidthMgCm2/(sinTheta*cosPhi);
+				recoilEnergyRecEloss = recoilTargetEnergy->Eval(range + targetWidthMgCm2/(sinTheta*cosPhi));
+				//std::cout<<" => "<<recoilEnergyRecEloss<<std::endl;
+				if(verbose) std::cout<<" => "<<recoilEnergyRecEloss<<std::endl;
+			}
+
+			//std::cout<<"theta "<<recoilThetaRec<<", phi "<<recoilPhiRec<<" (sinTheta "<<sinTheta<<", tmpPhi "<<tmpPhi<<", cosPhi "<<cosPhi<<"): "<<foilThicknessMgCm2/(sinTheta*cosPhi)<<" mg/cm^2, "<<recoilEnergyRec<<" => "<<recoilEnergyRecEloss<<", diff "<<recoilEnergyRecEloss-recoilEnergyRec<<std::endl;
 
 			// position has already been set above
 			part.SetRecEnergy(recoilEnergyRec);
@@ -425,13 +518,13 @@ int main(int argc, char* argv[]) {
 			// Q-value reconstruction
 			//////////////////////////
 
-			//transferP->SetEBeam(beamEnergyRec/sett->GetProjectileA());
 			transferP->SetEBeam(beamEnergyRec);
 			transferP->Final(recoilThetaRec/180.*TMath::Pi(), 2, true);
+			transferP->SetAngles(recoilThetaRec/180.*TMath::Pi(), 2, true);
 			double excEnergy = transferP->GetExcEnergy(part.GetReconstructed(), verbose);
 			double recoilThetaCmRec = transferP->GetThetacm(3)/TMath::Pi()*180.;
 			if(verbose) {
-				std::cout<<"beamEnergyRec "<<beamEnergyRec<<" => eex = "<<excEnergy<<" (spline at "<<recoilThetaRec<<" = "<<transferP->Evslab(0., 180., 1.)->Eval(recoilThetaRec)<<", recoilEnergyRec = "<<recoilEnergyRec<<")"<<std::endl;
+				std::cout<<"beamEnergyRec "<<beamEnergyRec<<" => eex = "<<excEnergy<<" (middle spline at "<<recoilThetaRec<<" = "<<middle->Eval(recoilThetaRec)<<", recoilEnergyRec = "<<recoilEnergyRec<<")"<<std::endl;
 				std::cout<<"recoilThetaCmRec = "<<recoilThetaCmRec<<", "<<transferP->GetThetacm(3)<<", "<<transferP->GetThetacm(2)<<", "<<transferP->GetThetacm(1)<<", "<<transferP->GetThetacm(0)<<std::endl;
 			}
 
@@ -458,6 +551,7 @@ int main(int argc, char* argv[]) {
 			zReactionEnergy->Fill(vertex.Z(), beamEnergyRec);
 			excEnProton->Fill(excEnergy);
 			excEnProtonVsTheta->Fill(recoilThetaRec, excEnergy);
+			excEnProtonVsPhi->Fill(recoilPhiRec, excEnergy);
 			excEnProtonVsThetaCm->Fill(recoilThetaCmRec, excEnergy);
 			excEnProtonVsZ->Fill(vertex.Z(), excEnergy);
 			if(reactionSim == 0) {
@@ -480,10 +574,24 @@ int main(int argc, char* argv[]) {
 			}
 			betaCmVsZ->Fill(vertex.Z(), transferP->GetBetacm());
 			eCmVsZ->Fill(vertex.Z(), transferP->GetCmEnergy()/1000.);
-			if(silicon_mult_second) stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
+			if(silicon_mult_second > 0) stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
 			recBeamEnergyErrVsZ->Fill(vertex.Z(), beamEnergyRec - reactionEnergyBeam);
 			thetaCmVsThetaLab->Fill(recoilThetaRec, recoilThetaCmRec);
 			zErrorVsthetaError->Fill(recoilThetaRec - recoilThetaSim, vertex.Z() - reactionZSim);
+			elossVsTheta->Fill(recoilThetaRec, recoilEnergyRecEloss - recoilEnergyRec);
+			elossVsPhi->Fill(recoilPhiRec, recoilEnergyRecEloss - recoilEnergyRec);
+
+			// now we reconstruct the q-value using the reconstructed energy loss
+			// position has already been set above
+			part.SetRecEnergy(recoilEnergyRecEloss);
+			part.SetType(2); //proton; this is for one-neutron transfer, only; this sets the mass of the particle
+			part.SetReconstructed(); // set TLorentzVector using mass, rec. energy, and position 
+			transferP->Final(recoilThetaRec/180.*TMath::Pi(), 2, true);
+			transferP->SetAngles(recoilThetaRec/180.*TMath::Pi(), 2, true);
+			excEnergy = transferP->GetExcEnergy(part.GetReconstructed(), verbose);
+			recoilThetaCmRec = transferP->GetThetacm(3)/TMath::Pi()*180.;
+			excEnElossVsTheta->Fill(recoilThetaRec, excEnergy);
+			if(0 <= reactionSim && reactionSim < nofLevels) excEnElossVsThetaLevel[reactionSim]->Fill(recoilThetaRec, excEnergy);
 		}   //end of mult = 1 events
 		if(i%1000 == 0){
 			cout<<setw(5)<<std::fixed<<setprecision(1)<<(100.*i)/nEntries<<setprecision(3)<<" % done\r"<<flush;
