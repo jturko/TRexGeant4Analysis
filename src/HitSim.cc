@@ -68,15 +68,18 @@ TVector3 HitSim::FirstPosition(bool smear) {
 			strip += fFirstDeltaE->GetStripNr()[i];
 		}
 		strip /= fFirstDeltaE->GetStripNr().size();
-	} else if(fFirstDeltaE->GetStripNr().size() > 1) { 
+	}
+	else if(fFirstDeltaE->GetStripNr().size() > 1) { 
 		// two not neighbooring strips: ignore them
 		std::cerr << "found " << fFirstDeltaE->GetStripNr().size() << " strips " << fFirstDeltaE->GetStripNr()[0] << " and " << fFirstDeltaE->GetStripNr()[1] << " but not neighboring!" << std::endl; 
 		return TVector3(0,0,0);
-	} else if(fFirstDeltaE->GetStripNr().size() == 1) { 
+	}
+	else if (fFirstDeltaE->GetStripNr().size() == 1) { 
 		// one hit only
 		std::cout << "one hit only" << std::endl;
 		strip = fFirstDeltaE->GetStripNr()[0];
-	} else { 
+	}
+	else { 
 		// no hit
 		std::cerr << "can not find any hit " << std::endl;
 		return TVector3(0,0,0);
@@ -88,6 +91,8 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	} else { // use mean strip position
 	  strip += 0.5;
 	}
+	
+	std::cout << "gas target length: " << fSett->GetGasTargetLength() << std::endl;
 	
 	// running on a gas target? --> use single-sided single strip detector
 	if(fSett->GetGasTargetLength() > 0) { 
