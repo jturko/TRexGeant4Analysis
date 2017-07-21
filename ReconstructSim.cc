@@ -319,7 +319,7 @@ int main(int argc, char* argv[]) {
         TVector3 secondposition;
 
         if(verbose) {
-            std::cout<<"*    * "<<setw(8)<<i<<" *";
+            std::cout << "* " << setw(8) << i << " *";
             size_t d;
             for(d = 0; d < firstDeltaE[0]->size() || d < secondDeltaE[0]->size(); ++d) {
                 std::cout << " " << setw(8) << d << " *";
