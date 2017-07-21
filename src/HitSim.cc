@@ -135,7 +135,7 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	    double ring = 0;
 	    
 	    std::cout << "neighbour ring: " << ((fFirstDeltaE->GetNeighborRing()) ? "true" : "false") << std::endl;
-	    std::cout << "size: " << fFirstDeltaE << GetRingNr().size() << std::endl;
+	    std::cout << "size: " << fFirstDeltaE->GetRingNr().size() << std::endl;
 	    
 	    // two neighboring rings hit: calculate mean strip number
 	    if(fFirstDeltaE->GetNeighborRing()) {
