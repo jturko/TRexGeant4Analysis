@@ -60,7 +60,7 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	double strip = 0;
 	
 	std::cout << "size: " << fFirstDeltaE->GetStripNr().size() << std::endl;
-	std::cout << "GetNeighborStrip: " << fFirstDeltaE->GetNeighborStrip << std::endl;
+	std::cout << "GetNeighborStrip: " << fFirstDeltaE->GetNeighborStrip() << std::endl;
 
 	// two neighboring strips hit: calculate mean strip number
 	if(fFirstDeltaE->GetNeighborStrip()) { 
