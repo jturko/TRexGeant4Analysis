@@ -302,9 +302,9 @@ int main(int argc, char* argv[]) {
     cout<<"Nr of Events "<<nEntries<<endl;
 
     if(verbose) {
-        std::cout   <<"***********************************************************************************************"<<std::endl
-                    <<"*    Row   * Instance * FBarrelDe * SecondFBa * FBarrelEr * FBarrelDe * SecondFBa * FBarrelEr *"<<std::endl
-                    <<"************************************************************************************************"<<std::endl;
+        std::cout   << "***********************************************************************************************"    << std::endl
+                    << "*    Row   * Instance * FBarrelDe * SecondFBa * FBarrelEr * FBarrelDe * SecondFBa * FBarrelEr *"    << std::endl
+                    << "***********************************************************************************************"    << std::endl;
     }
 
     for(Long64_t i = 0; i < nEntries; ++i) {
@@ -319,10 +319,10 @@ int main(int argc, char* argv[]) {
         TVector3 secondposition;
 
         if(verbose) {
-            //std::cout<<"*    * "<<setw(8)<<i<<" *";
+            std::cout<<"*    * "<<setw(8)<<i<<" *";
             size_t d;
             for(d = 0; d < firstDeltaE[0]->size() || d < secondDeltaE[0]->size(); ++d) {
-                std::cout << " " << setw(9) << d << " *";
+                std::cout << " " << setw(8) << d << " *";
                 if(d < firstDeltaE[0]->size())
                     std::cout << " "<< setw(9) << firstDeltaE[0]->at(d).GetID() << " *";
                 else
