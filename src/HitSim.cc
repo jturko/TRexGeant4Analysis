@@ -74,6 +74,7 @@ TVector3 HitSim::FirstPosition(bool smear) {
 		return TVector3(0,0,0);
 	} else if(fFirstDeltaE->GetStripNr().size() == 1) { 
 		// one hit only
+		std::cout << "one hit only" << std::endl;
 		strip = fFirstDeltaE->GetStripNr()[0];
 	} else { 
 		// no hit
