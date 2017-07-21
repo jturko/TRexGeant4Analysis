@@ -133,6 +133,10 @@ TVector3 HitSim::FirstPosition(bool smear) {
 		  // running on a solid target --> double-sided strip detector
 	    // "ring" number = strips parallel to beam direction
 	    double ring = 0;
+	    
+	    std::cout << "neighbour ring: " << ((fFirstDeltaE->GetNeighborRing()) ? "true" : "false") << std::endl;
+	    std::cout << "size: " << fFirstDeltaE << GetRingNr().size() << std::endl;
+	    
 	    // two neighboring rings hit: calculate mean strip number
 	    if(fFirstDeltaE->GetNeighborRing()) {
 			 for(unsigned int i = 0; i < fFirstDeltaE->GetRingNr().size(); i++) { 
