@@ -58,6 +58,8 @@ TVector3 HitSim::FirstPosition(bool smear) {
 
 	// strip number = perpendicular to beam direction
 	double strip = 0;
+	
+	std::cout << "size: " << fFirstDeltaE->GetStripNr().size() << std::endl;
 
 	// two neighboring strips hit: calculate mean strip number
 	if(fFirstDeltaE->GetNeighborStrip()) { 
@@ -67,14 +69,14 @@ TVector3 HitSim::FirstPosition(bool smear) {
 		strip /= fFirstDeltaE->GetStripNr().size();
 	} else if(fFirstDeltaE->GetStripNr().size() > 1) { 
 		// two not neighbooring strips: ignore them
-		std::cerr<<"found "<<fFirstDeltaE->GetStripNr().size()<<" strips "<<fFirstDeltaE->GetStripNr()[0]<<" and "<<fFirstDeltaE->GetStripNr()[1]<<" but not neighboring!"<<std::endl; 
+		std::cerr << "found " << fFirstDeltaE->GetStripNr().size() << " strips " << fFirstDeltaE->GetStripNr()[0] << " and " << fFirstDeltaE->GetStripNr()[1] << " but not neighboring!" << std::endl; 
 		return TVector3(0,0,0);
 	} else if(fFirstDeltaE->GetStripNr().size() == 1) { 
 		// one hit only
 		strip = fFirstDeltaE->GetStripNr()[0];
 	} else { 
 		// no hit
-		std::cerr<<"can not find any hit "<<std::endl;
+		std::cerr << "can not find any hit " << std::endl;
 		return TVector3(0,0,0);
 	}
 

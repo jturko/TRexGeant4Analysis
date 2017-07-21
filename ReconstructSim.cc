@@ -393,10 +393,10 @@ int main(int argc, char* argv[]) {
                 }
 
                 if(verbose) {
-                    std::cout<<"Using pad "<<index_second<<" with "<<pad[index_second]->size()<<" detectors"<<std::endl;
+                    std::cout << "Using pad " << index_second << " with " << pad[index_second]->size() << " detectors" << std::endl;
                     for(int p = 0; p < 2; ++p) {
                         for(size_t d = 0; d < pad[p]->size(); ++d) {
-                            std::cout<<p<<": pad "<<pad[p]->at(d).GetID()<<" = "<<pad[p]->at(d).GetEdet()<<" keV / "<<pad[p]->at(d).GetRear()<<" keV"<<std::endl;
+                            std::cout << p << ": pad " << pad[p]->at(d).GetID() << " = " << pad[p]->at(d).GetEdet() << " keV / " << pad[p]->at(d).GetRear() << " keV" << std::endl;
                         }
                     }
                 }
