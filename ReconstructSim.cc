@@ -313,8 +313,8 @@ int main(int argc, char* argv[]) {
         ParticleBranch->clear();
         tr->GetEntry(i);
         trGen->GetEntry(i);
-        Int_t silicon_mult_first = firstDeltaE[0]->size()+ firstDeltaE[1]->size();
-        Int_t silicon_mult_second = secondDeltaE[0]->size()+ secondDeltaE[1]->size();
+        Int_t silicon_mult_first = firstDeltaE[0]->size() + firstDeltaE[1]->size();
+        Int_t silicon_mult_second = secondDeltaE[0]->size() + secondDeltaE[1]->size();
         TVector3 firstposition;
         TVector3 secondposition;
 
@@ -351,8 +351,8 @@ int main(int argc, char* argv[]) {
             if(d == 0) std::cout<<std::endl;
         }
 
-        Int_t index_first = 0;
-        Int_t index_second = 0;
+        Int_t index_first = -1;
+        Int_t index_second = -1;
 
         // exactly one hit in any first layer and one hit in any second layer ?
         //TODO: take into account multiple hits
@@ -586,7 +586,7 @@ int main(int argc, char* argv[]) {
             }
             betaCmVsZ->Fill(vertex.Z(), transferP->GetBetacm());
             eCmVsZ->Fill(vertex.Z(), transferP->GetCmEnergy()/1000.);
-            if(silicon_mult_second > 0) stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
+            if(silicon_mult_second > 0 && index_second != -1) stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
             recBeamEnergyErrVsZ->Fill(vertex.Z(), beamEnergyRec - reactionEnergyBeam);
             thetaCmVsThetaLab->Fill(recoilThetaRec, recoilThetaCmRec);
             zErrorVsthetaError->Fill(recoilThetaRec - recoilThetaSim, vertex.Z() - reactionZSim);
