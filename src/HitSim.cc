@@ -59,8 +59,8 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	// strip number = perpendicular to beam direction
 	double strip = 0;
 	
-	std::cout << "size: " << fFirstDeltaE->GetStripNr().size() << std::endl;
-	std::cout << "GetNeighborStrip: " << ((fFirstDeltaE->GetNeighborStrip()) ? "true" : "false") << std::endl;
+	//std::cout << "size: " << fFirstDeltaE->GetStripNr().size() << std::endl;
+	//std::cout << "GetNeighborStrip: " << ((fFirstDeltaE->GetNeighborStrip()) ? "true" : "false") << std::endl;
 
 	// two neighboring strips hit: calculate mean strip number
 	if(fFirstDeltaE->GetNeighborStrip()) { 
@@ -76,7 +76,7 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	}
 	else if (fFirstDeltaE->GetStripNr().size() == 1) { 
 		// one hit only
-		std::cout << "one hit only" << std::endl;
+		//std::cout << "one hit only" << std::endl;
 		strip = fFirstDeltaE->GetStripNr()[0];
 	}
 	else { 
@@ -92,7 +92,7 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	  strip += 0.5;
 	}
 	
-	std::cout << "gas target length: " << fSett->GetGasTargetLength() << std::endl;
+	//std::cout << "gas target length: " << fSett->GetGasTargetLength() << std::endl;
 	
 	// running on a gas target? --> use single-sided single strip detector
 	if(fSett->GetGasTargetLength() > 0) { 
@@ -134,8 +134,8 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	    // "ring" number = strips parallel to beam direction
 	    double ring = 0;
 	    
-	    std::cout << "neighbour ring: " << ((fFirstDeltaE->GetNeighborRing()) ? "true" : "false") << std::endl;
-	    std::cout << "size: " << fFirstDeltaE->GetRingNr().size() << std::endl;
+	    //std::cout << "neighbour ring: " << ((fFirstDeltaE->GetNeighborRing()) ? "true" : "false") << std::endl;
+	    //std::cout << "size: " << fFirstDeltaE->GetRingNr().size() << std::endl;
 	    
 	    // two neighboring rings hit: calculate mean strip number
 	    if(fFirstDeltaE->GetNeighborRing()) {
