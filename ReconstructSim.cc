@@ -323,30 +323,18 @@ int main(int argc, char* argv[]) {
 			size_t d;
 			for(d = 0; d < firstDeltaE[0]->size() || d < secondDeltaE[0]->size(); ++d) {
 				std::cout << " " << setw(8) << d << " *";
-				if(d < firstDeltaE[0]->size())
-					std::cout << " "<< setw(9) << firstDeltaE[0]->at(d).GetID() << " *";
-				else
-					std::cout << "           *";
-				if(d < secondDeltaE[0]->size())
-					std::cout << " "<< setw(9) << secondDeltaE[0]->at(d).GetID() << " *";
-				else
-					std::cout << "           *";
-				if(d < pad[0]->size()) 
-					std::cout << " " << setw(9) << pad[0]->at(d).GetID() << " *";
-				else
-					std::cout << "           *";
-				if(d < firstDeltaE[0]->size() && firstDeltaE[0]->at(d).GetStripEnergy().size() > 0)
-					std::cout << " " << setw(9) << firstDeltaE[0]->at(d).GetStripEnergy()[0] << " *";
-				else 
-					std::cout << "           *";
-				if(d < secondDeltaE[0]->size() && secondDeltaE[0]->at(d).GetStripEnergy().size() > 0)
-					std::cout << " " << setw(9) << secondDeltaE[0]->at(d).GetStripEnergy()[0] << " *";
-				else
-					std::cout << "           *";
-				if(d < pad[0]->size())
-					std::cout << " "<< setw(9) << pad[0]->at(d).GetEdet() << " *" << std::endl;
-				else
-					std::cout << "           *" << std::endl;
+				if(d < firstDeltaE[0]->size()) 	std::cout << " "<< setw(9) << firstDeltaE[0]->at(d).GetID() << " *";
+				else 							std::cout << "           *";
+				if(d < secondDeltaE[0]->size())	std::cout << " "<< setw(9) << secondDeltaE[0]->at(d).GetID() << " *";
+				else							std::cout << "           *";
+				if(d < pad[0]->size()) 			std::cout << " " << setw(9) << pad[0]->at(d).GetID() << " *";
+				else							std::cout << "           *";
+				if(d < firstDeltaE[0]->size() && firstDeltaE[0]->at(d).GetStripEnergy().size() > 0) 	std::cout << " " << setw(9) << firstDeltaE[0]->at(d).GetStripEnergy()[0] << " *";
+				else 																					std::cout << "           *";
+				if(d < secondDeltaE[0]->size() && secondDeltaE[0]->at(d).GetStripEnergy().size() > 0)	std::cout << " " << setw(9) << secondDeltaE[0]->at(d).GetStripEnergy()[0] << " *";
+				else																					std::cout << "           *";
+				if(d < pad[0]->size())			std::cout << " "<< setw(9) << pad[0]->at(d).GetEdet() << " *" << std::endl;
+				else							std::cout << "           *" << std::endl;
 			}
 			if(d == 0) std::cout<<std::endl;
 		}
