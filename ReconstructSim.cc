@@ -302,9 +302,9 @@ int main(int argc, char* argv[]) {
 	cout<<"Nr of Events "<<nEntries<<endl;
 
 	if(verbose) {
-		std::cout<<"***********************************************************************************************"<<std::endl
-			<<"*    Row   * Instance * FBarrelDe * SecondFBa * FBarrelEr * FBarrelDe * SecondFBa * FBarrelEr *"<<std::endl
-			<<"*    ***********************************************************************************************"<<std::endl;
+		std::cout   << "***********************************************************************************************"    << std::endl
+					<< "*    Row   * Instance * FBarrelDe * SecondFBa * FBarrelEr * FBarrelDe * SecondFBa * FBarrelEr *"    << std::endl
+					<< "***********************************************************************************************"    << std::endl;
 	}
 
 	for(Long64_t i = 0; i < nEntries; ++i) {
@@ -313,41 +313,41 @@ int main(int argc, char* argv[]) {
 		ParticleBranch->clear();
 		tr->GetEntry(i);
 		trGen->GetEntry(i);
-		Int_t silicon_mult_first = firstDeltaE[0]->size()+ firstDeltaE[1]->size();
-		Int_t silicon_mult_second = secondDeltaE[0]->size()+ secondDeltaE[1]->size();
+		Int_t silicon_mult_first = firstDeltaE[0]->size() + firstDeltaE[1]->size();
+		Int_t silicon_mult_second = secondDeltaE[0]->size() + secondDeltaE[1]->size();
 		TVector3 firstposition;
 		TVector3 secondposition;
 
 		if(verbose) {
-			std::cout<<"*    * "<<setw(8)<<i<<" *";
+			std::cout << "* " << setw(8) << i << " *";
 			size_t d;
 			for(d = 0; d < firstDeltaE[0]->size() || d < secondDeltaE[0]->size(); ++d) {
-				std::cout<<" "<<setw(8)<<d<<" *";
-				if(d < firstDeltaE[0]->size()) std::cout<<" "<<setw(8)<<firstDeltaE[0]->at(d).GetID()<<" *";
-				else                           std::cout<<"          *";
-				if(d < secondDeltaE[0]->size()) std::cout<<" "<<setw(8)<<secondDeltaE[0]->at(d).GetID()<<" *";
-				else                            std::cout<<"          *";
-				if(d < pad[0]->size()) std::cout<<" "<<setw(8)<<pad[0]->at(d).GetID()<<" *";
-				else                   std::cout<<"          *";
-				if(d < firstDeltaE[0]->size() && firstDeltaE[0]->at(d).GetStripEnergy().size() > 0) std::cout<<" "<<setw(8)<<firstDeltaE[0]->at(d).GetStripEnergy()[0]<<" *";
-				else                                                                                std::cout<<"          *";
-				if(d < secondDeltaE[0]->size() && secondDeltaE[0]->at(d).GetStripEnergy().size() > 0) std::cout<<" "<<setw(8)<<secondDeltaE[0]->at(d).GetStripEnergy()[0]<<" *";
-				else                                                                                  std::cout<<"          *";
-				if(d < pad[0]->size()) std::cout<<" "<<setw(8)<<pad[0]->at(d).GetEdet()<<" *"<<std::endl;
-				else                   std::cout<<"          *"<<std::endl;
+				std::cout << " " << setw(8) << d << " *";
+				if(d < firstDeltaE[0]->size()) 	std::cout << " "<< setw(9) << firstDeltaE[0]->at(d).GetID() << " *";
+				else 							std::cout << "           *";
+				if(d < secondDeltaE[0]->size())	std::cout << " "<< setw(9) << secondDeltaE[0]->at(d).GetID() << " *";
+				else							std::cout << "           *";
+				if(d < pad[0]->size()) 			std::cout << " " << setw(9) << pad[0]->at(d).GetID() << " *";
+				else							std::cout << "           *";
+				if(d < firstDeltaE[0]->size() && firstDeltaE[0]->at(d).GetStripEnergy().size() > 0) 	std::cout << " " << setw(9) << firstDeltaE[0]->at(d).GetStripEnergy()[0] << " *";
+				else 																					std::cout << "           *";
+				if(d < secondDeltaE[0]->size() && secondDeltaE[0]->at(d).GetStripEnergy().size() > 0)	std::cout << " " << setw(9) << secondDeltaE[0]->at(d).GetStripEnergy()[0] << " *";
+				else																					std::cout << "           *";
+				if(d < pad[0]->size())			std::cout << " "<< setw(9) << pad[0]->at(d).GetEdet() << " *" << std::endl;
+				else							std::cout << "           *" << std::endl;
 			}
 			if(d == 0) std::cout<<std::endl;
 		}
 
-		Int_t index_first = 0;
-		Int_t index_second = 0;
+		Int_t index_first = -1;
+		Int_t index_second = -1;
 
 		// exactly one hit in any first layer and one hit in any second layer ?
 		//TODO: take into account multiple hits
 
 		if(silicon_mult_first > 1 || silicon_mult_second > 1) {
 			std::cout<<"Warning: Multiple hits in Silicon Tracker! "<<std::endl
-			         <<"First layer:  "<<silicon_mult_first<<" ( ";
+					 <<"First layer:  "<<silicon_mult_first<<" ( ";
 			for(auto dir : firstDeltaE) {
 				std::cout<<dir->size()<<" ";
 			}
@@ -381,10 +381,10 @@ int main(int argc, char* argv[]) {
 				}
 
 				if(verbose) {
-					std::cout<<"Using pad "<<index_second<<" with "<<pad[index_second]->size()<<" detectors"<<std::endl;
+					std::cout << "Using pad " << index_second << " with " << pad[index_second]->size() << " detectors" << std::endl;
 					for(int p = 0; p < 2; ++p) {
 						for(size_t d = 0; d < pad[p]->size(); ++d) {
-							std::cout<<p<<": pad "<<pad[p]->at(d).GetID()<<" = "<<pad[p]->at(d).GetEdet()<<" keV / "<<pad[p]->at(d).GetRear()<<" keV"<<std::endl;
+							std::cout << p << ": pad " << pad[p]->at(d).GetID() << " = " << pad[p]->at(d).GetEdet() << " keV / " << pad[p]->at(d).GetRear() << " keV" << std::endl;
 						}
 					}
 				}
@@ -574,7 +574,7 @@ int main(int argc, char* argv[]) {
 			}
 			betaCmVsZ->Fill(vertex.Z(), transferP->GetBetacm());
 			eCmVsZ->Fill(vertex.Z(), transferP->GetCmEnergy()/1000.);
-			if(silicon_mult_second > 0) stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
+			if(silicon_mult_second > 0 && index_second != -1) stripPattern->Fill(index_second*nStripsY + secondDeltaE[index_second]->at(0).GetStripNr()[0], secondDeltaE[index_second]->at(0).GetID()*nStripsX + secondDeltaE[index_second]->at(0).GetRingNr()[0]);
 			recBeamEnergyErrVsZ->Fill(vertex.Z(), beamEnergyRec - reactionEnergyBeam);
 			thetaCmVsThetaLab->Fill(recoilThetaRec, recoilThetaCmRec);
 			zErrorVsthetaError->Fill(recoilThetaRec - recoilThetaSim, vertex.Z() - reactionZSim);

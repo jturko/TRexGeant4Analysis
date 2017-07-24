@@ -119,7 +119,19 @@ Compound::Compound(const char* symbol) {
 
 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
 		fDensity = 0.1967;
-	} 
+	}  else if(strstr(symbol,"helium")) {
+ 		std::cout << "helium!" << std::endl;
+ 		fNuclei.resize(1);
+ 		fFrac.resize(1);
+ 
+ 		fNuclei[0] = new Nucleus(1,1,massfile.c_str());
+ 
+ 		fFrac[0] = 1;
+ 
+ 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
+ 		fDensity = 0.1967;
+ 	}
+
 
 	else {
 		std::cerr<<"Compound \""<<symbol<<"\" not implemented yet!"<< std::endl;
