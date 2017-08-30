@@ -278,7 +278,7 @@ TSpline3* Reconstruction::Energy2EnergyAfter(double emax, double size, bool gase
 	return spline;
 }
 
-TSpline3* Reconstruction::Thickness2EnergyAfter(double energy, double maxThickness, double stepSize, bool gaseous) {
+TSpline3* Reconstruction::Thickness2EnergyAfter(double energy, double maxThickness, double stepSize, bool gaseous) { // used to get energies in the middel and aftar target **** LA ****
 	double* thickness = new double[static_cast<int>(maxThickness/stepSize)+1];
 	double* eAfter    = new double[static_cast<int>(maxThickness/stepSize)+1];
 	int i;
@@ -288,7 +288,7 @@ TSpline3* Reconstruction::Thickness2EnergyAfter(double energy, double maxThickne
 		thickness[i] = i*stepSize;
 		fTargetThickness = thickness[i];
 		eAfter[i]  = EnergyAfter(energy, -5, gaseous)*1000.; //conversion to keV
-		if(eAfter[i] < 10.) {
+		if(eAfter[i] < 10.) { // or  if(eAfter[i] < 10. && eAfter[i] >0.) not to get negative energies **** LA ****
 			break;
 		}
 	}

@@ -29,7 +29,7 @@ public:
   void SetSecondDeltaE(ParticleMC& secondbarrel, Direction direction);
   void SetPad(ParticleMC& pad);
 
-  TVector3 FirstPosition(bool smear);
+  TVector3 FirstPosition(bool doubleSidedFirstLayer, bool smear);
   TVector3 SecondPosition(bool smear);
 
   double GetFirstDeltaEEnergy(bool verbose = false);

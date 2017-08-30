@@ -1,4 +1,4 @@
-#include "Kinematics.hh"      //what is "part"
+ #include "Kinematics.hh"      //what is "part"
 
 Kinematics::Kinematics(){
 }
@@ -12,8 +12,8 @@ Kinematics::Kinematics(Nucleus* projectile, Nucleus* target, double ebeam){
 	fM[1]=fParticle[1]->GetMass();
 	fEBeam = ebeam;
 	fQValue =0;
-	Initial();
-	FinalCm();
+	Initial(); // kinematic of incoming particles in lab and CM ***LA***
+	FinalCm(); // kinematic of outgoing particles in lab and CM ***LA***
 }
 Kinematics::Kinematics(Nucleus* projectile, Nucleus* target, Nucleus* recoil, Nucleus* ejectile, double ebeam, double ex3){
 	fParticle[0] = projectile;
@@ -32,13 +32,13 @@ Kinematics::Kinematics(Nucleus* projectile, Nucleus* target, Nucleus* recoil, Nu
 }
 
 TSpline3* Kinematics::Evslab(double thmin, double thmax, double size, int part, bool upper){
-	//std::cout << "maximum scattering angle: " << GetMaxAngle(fVcm[part])*180./PI  << std::endl;
+	//std::cout << "Evslab 1 maximum scattering angle: " << GetMaxAngle(fVcm[part])*180./PI  << std::endl;
 
 	if(thmax > GetMaxAngle(fVcm[part])*180./PI){
 		thmax = GetMaxAngle(fVcm[part])*180./PI;
 	}
 	int nBins = (int)((thmax-thmin)/size)+1;
-	//std::cout << "max " << thmax << " min " << thmin << " steps " << (int)((thmax-thmin)/size)+1 << "size " << size << "part " << part << std::endl;
+	//std::cout << "Evslab  2 max " << thmax << " min " << thmin << " steps " << (int)((thmax-thmin)/size)+1 << "size " << size << "part " << part << std::endl;
 	double* energy = new double[nBins];
 	double* angle = new double[nBins];
 	int number =0;
@@ -48,15 +48,15 @@ TSpline3* Kinematics::Evslab(double thmin, double thmax, double size, int part, 
 		Final((thmin+i*size)*PI/180.,part, upper);
 		angle[i]=GetThetalab(part)*180./PI;
 		energy[i]=GetTlab(part)*1000;
-		//std::cout << " angle " << angle[i] << " energy " << energy[i] << " Final_bla " <<  (thmin+i*size)*PI/180. <<  std::endl;
-		//std::cout << " GetThetalab " << GetThetalab(part)*180./PI << "GetTlab "<< GetTlab(part)*1000 << std::endl;
+		//std::cout << "Evslab 3 angle " << angle[i] << " energy " << energy[i] << " Final_bla " <<  (thmin+i*size)*PI/180. <<  std::endl;
+		//std::cout << "Evslab 4 GetThetalab " << GetThetalab(part)*180./PI << "GetTlab "<< GetTlab(part)*1000 << std::endl;
 		if(energy[i]<1e15 && energy[i]>0.0001) number++;
 		else break;
 
-		// std::cout << "theta " <<(thmin+i*size)<<" res "<< angle[i] << " energy " << energy[i] << std::endl;
+		 //std::cout << "Evslab 5 theta " <<(thmin+i*size)<<" res "<< angle[i] << " energy " << energy[i] << std::endl;
 	}
 
-	//std::cout << "nBins " << nBins << " number " << number << std::endl;
+	//std::cout << "Evslab 6 nBins " << nBins << " number " << number << std::endl;
 
 	TGraph* graph = new TGraph(number, angle, energy);
 	TSpline3* spline = new TSpline3("ETh_lab",graph);
@@ -132,13 +132,13 @@ double Kinematics::GetBeamEnergy(double LabAngle, double LabEnergy){
 
 
 void Kinematics::Initial(){
-	fT[0]=fEBeam;
-	fT[1]=0;
-	fE[0]=fT[0] + fM[0];
-	fE[1]=fT[1] + fM[1];
-	fP[0]=sqrt(fT[0]*fT[0]+2*fT[0]*fM[0]);
+	fT[0]=fEBeam; // projectile kinetic energy in lab ***LA***
+	fT[1]=0; // target kinetic energy in lab ***LA***
+	fE[0]=fT[0] + fM[0]; // projrctile total energy in lab ***LA***
+	fE[1]=fT[1] + fM[1]; // target total energy in lab ***LA***
+	fP[0]=sqrt(fT[0]*fT[0]+2*fT[0]*fM[0]); // momentum in lab ***LA***
 	fP[1]=0;
-	fV[0]=fP[0]/fE[0];
+	fV[0]=fP[0]/fE[0]; // velocity in lab ***LA***
 	fV[1]=fP[1]/fE[1];
 
 	fEcm[0]=GetCmEnergy(fEBeam)/2+(fM[0]*fM[0]-fM[1]*fM[1])/(2*GetCmEnergy(fEBeam));
@@ -176,7 +176,7 @@ void Kinematics::FinalCm(){
 	fBetacm[2]=-betacm_tm(fTcm[2],fM[2]);
 	fBetacm[3]=betacm_tm(fTcm[3],fM[3]);
 
-	/*
+	
 		for(int i=0;i<4;i++){
 		std::cout << "fBetacm["<<i<<"] = " << fBetacm[i]<< "\t";
 		}
@@ -186,7 +186,7 @@ void Kinematics::FinalCm(){
 		}
 		std::cout <<std::endl;
 		std::cout << "fBeta_cm = " << fBeta_cm<<std::endl;
-		*/
+		
 }
 void Kinematics::Final(double angle, int part, bool upper){             //angle of proton in lab system
 	if(angle>GetMaxAngle(fVcm[part])){
