@@ -119,19 +119,19 @@ Compound::Compound(const char* symbol) {
 
 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
 		fDensity = 0.1967;
-	}  else if(strstr(symbol,"helium")) {
- 		std::cout << "helium!" << std::endl;
- 		fNuclei.resize(1);
- 		fFrac.resize(1);
- 
- 		fNuclei[0] = new Nucleus(1,1,massfile.c_str());
- 
- 		fFrac[0] = 1;
- 
- 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
- 		fDensity = 0.1967;
- 	}
+	}else if(strstr(symbol,"helium")) {
+		std::cout << "Helium Gas!" << std::endl;
+		fNuclei.resize(1);
+		fFrac.resize(1);
 
+		fNuclei[0] = new Nucleus(2,2,massfile.c_str());
+
+		fFrac[0] = 1;
+
+		fMass = fNuclei[0]->GetMass() * 1.0;
+		std::cout<<"Helium Mass Leila"<<fMass<<std::endl;
+		fDensity = 0.179;// depends on pressure, so user will need to use SetDensity
+	} 
 
 	else {
 		std::cerr<<"Compound \""<<symbol<<"\" not implemented yet!"<< std::endl;
