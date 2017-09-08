@@ -536,9 +536,9 @@ int main(int argc, char* argv[]) {
 				range = recoilChamberGasRange->Eval(recoilEnergyRecEloss);
 				recoilEnergyRecEloss = recoilChamberGasEnergy->Eval(range + firstGasLayerThicknessMgCm2/(sinTheta*cosPhi));
 				if(verbose) std::cout<<" at "<<recoilEnergyRecEloss<<" through "<<foilThicknessMgCm2/(sinTheta*cosPhi)<<" mm foil ";
-				range = recoilFoilRange->Eval(recoilEnergyRec);
+				range = recoilFoilRange->Eval(recoilEnergyRecEloss);
 				recoilEnergyRecEloss = recoilFoilEnergy->Eval(range + foilThicknessMgCm2/(sinTheta*cosPhi));
-				if(verbose) std::cout<<"/n recoilEnergyRec: "<<recoilEnergyRec<<", range: "<<range<<" + foilThicknessMgCm2/(sinTheta*cosPhi) "<<foilThicknessMgCm2/(sinTheta*cosPhi)<<" => recoilEnergyRecEloss: "<<recoilEnergyRecEloss<<std::endl;
+				if(verbose) std::cout<<"/n recoilEnergyRecEloss: "<<recoilEnergyRecEloss<<", range: "<<range<<" + foilThicknessMgCm2/(sinTheta*cosPhi) "<<foilThicknessMgCm2/(sinTheta*cosPhi)<<" => recoilEnergyRecEloss: "<<recoilEnergyRecEloss<<std::endl;
 				// for now assume that the "box" inside the foil is filled with target gas
 				if(verbose) std::cout<<" at "<<recoilEnergyRecEloss<<" through "<<targetWidthMgCm2/(sinTheta*cosPhi)<<" mm gas ";
 				range = recoilTargetRange->Eval(recoilEnergyRecEloss);
