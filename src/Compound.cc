@@ -58,7 +58,7 @@ Compound::Compound(const char* symbol) {
 		fFrac[2] = 4.*fNuclei[2]->GetMass()/(8.*fNuclei[0]->GetMass() + 10.*fNuclei[1]->GetMass() + 4.*fNuclei[2]->GetMass());
 
 		fMass = fNuclei[0]->GetMass()*8. + fNuclei[1]->GetMass()*10. + fNuclei[2]->GetMass()*4.;
-		fDensity = 1.4; // from Geant4
+		fDensity = 1.4; // from Geant4 or google 1.39 g/cm3
 	} else if(strstr(symbol,"TTI")) {
 		std::cout << "Tritiated Titanium Target!" << std::endl;
 		// ratioTTI = atomic ratio Tritium/Titanium
@@ -107,7 +107,8 @@ Compound::Compound(const char* symbol) {
 		fFrac[0] = 1;
 
 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
-		//density depends on pressure, so user will need to use SetDensity
+		fDensity = 0.000164;
+		
 	} else if(strstr(symbol,"SolidDeuterium")) {
 		std::cout << "Solid Deuterium!" << std::endl;
 		fNuclei.resize(1);
@@ -129,12 +130,28 @@ Compound::Compound(const char* symbol) {
 		fFrac[0] = 1;
 
 		fMass = fNuclei[0]->GetMass() * 1.0;
-		std::cout<<"Helium Mass Leila"<<fMass<<std::endl;
-		fDensity = 0.179;// depends on pressure, so user will need to use SetDensity
+		std::cerr<<"symbol " << symbol<< std::endl;
+		//std::cout<<"Helium Mass Leila "<<fMass<<" zero: "<<fNuclei[0]->GetMass()<<" one: "<<fNuclei[1]->GetMass()<<std::endl;
+		fDensity = 0.179e-3;// 0.179e-3 g/cm3 @ STP (0 deg/1 bar)
+	} 
+	
+	else if(strstr(symbol,"silicon")) {
+		std::cout << "silicon!" << std::endl;
+		fNuclei.resize(1);
+		fFrac.resize(1);
+
+		fNuclei[0] = new Nucleus(14,14,massfile.c_str());
+
+		fFrac[0] = 1;
+
+		fMass = fNuclei[0]->GetMass() * 1.0;
+		std::cout<<"silicon Mass Leila "<<fMass<<" zero: "<<fNuclei[0]->GetMass()<<" one: "<<fNuclei[1]->GetMass()<<std::endl;
+		fDensity = 2.329;// 2.329 g/cm3 from google
 	} 
 
 	else {
 		std::cerr<<"Compound \""<<symbol<<"\" not implemented yet!"<< std::endl;
+		std::cerr<<"symbol " << symbol<< std::endl;
 		exit(1);
 	}
 }
