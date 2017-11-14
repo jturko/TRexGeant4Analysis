@@ -46,7 +46,7 @@ all: $(O_FILES) ReconstructSim libReconstructSim.so
 .build/ReconstructSimDictionary.cc: $(DEPENDENCIES) 
 	rootcint -f $@ -c $(DEPENDENCIES) 
 
-.build/ReconstructSimDictionary.o: .build/ReconstructSimDictionary.cc  .build/ReconstructSimDictionary.h
+.build/ReconstructSimDictionary.o: .build/ReconstructSimDictionary.cc
 	$(CPP) -fPIC $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 #==================================================================
