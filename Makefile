@@ -22,12 +22,13 @@ SIM_DIR = ../include
 
 INCLUDE_DIRS = $(SIM_DIR) $(COMM_DIR) $(PWD) $(PWD)/include $(G4INCLUDE)
 
-FILES = Reconstruction Nucleus Compound HitSim Particle Kinematics ParticleMC ReconstructSimDictionary TRexSettings
+FILES = Reconstruction Nucleus Compound HitSim Particle Kinematics ParticleMC ReconstructSimDictionary TRexSettings Germanium
 
 O_FILES = $(addsuffix .o, $(addprefix .build/, $(FILES) ) )
 
 DEPENDENCIES = include/Particle.hh \
 	../include/ParticleMC.hh \
+	../include/Germanium.hh \
 	../include/TRexSettings.hh \
 	include/RootLinkDef.h
 
@@ -64,6 +65,10 @@ all: $(O_FILES) ReconstructSim libReconstructSim.so
 .build/ParticleMC.o: ../src/ParticleMC.cc ../include/ParticleMC.hh
 	@mkdir -p $(dir $@)
 	$(CPP) -fPIC $(CFLAGS) $(INCLUDES)  -c $< -o $@
+
+.build/Germanium.o: ../src/Germanium.cc ../include/Germanium.hh
+	@mkdir -p $(dir $@)
+	$(CPP) -fPIC $(CFLAGS) $(INCLUDES) -c $< -o $@
 
 #==================================================================
 # generation of executables

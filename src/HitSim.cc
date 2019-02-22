@@ -318,8 +318,10 @@ TVector3 HitSim::SecondPosition(bool smear) {
 	// smear ring position
 	if(smear) {
 		ring+=(1-fRand->Uniform());  //uniform (0,1] - > 1-uniform [0,1)
+		strip+=(1-fRand->Uniform());  //uniform (0,1] - > 1-uniform [0,1)
 	} else { // use mean strip position
 		ring+=0.5;
+		strip+=0.5;
 	}
 
 	// strip 0 closest to target
