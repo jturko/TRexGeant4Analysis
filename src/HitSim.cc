@@ -44,7 +44,7 @@ void HitSim::SetPad(ParticleMC& pad) {
  *                        -> broken strip is hit (not possible in current simulation)
  *
  *****************************************************************/
-TVector3 HitSim::FirstPosition(bool smear) {
+TVector3 HitSim::FirstPosition(bool doubleSidedFirstLayer, bool smear) {
 	if(fFirstDeltaE == nullptr) return TVector3(0., 0., 0.);
 	if(fFirstPosition != TVector3(0., 0., 0.)) {
 		return fFirstPosition;
@@ -55,12 +55,10 @@ TVector3 HitSim::FirstPosition(bool smear) {
 
 	// quadrant
 	int quadr = fFirstDeltaE->GetID();
+	//std::cout<<" \n !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! first layer no: "<< quadr << std::endl;
 
 	// strip number = perpendicular to beam direction
 	double strip = 0;
-	
-	//std::cout << "size: " << fFirstDeltaE->GetStripNr().size() << std::endl;
-	//std::cout << "GetNeighborStrip: " << ((fFirstDeltaE->GetNeighborStrip()) ? "true" : "false") << std::endl;
 
 	// two neighboring strips hit: calculate mean strip number
 	if(fFirstDeltaE->GetNeighborStrip()) { 
@@ -70,15 +68,14 @@ TVector3 HitSim::FirstPosition(bool smear) {
 		strip /= fFirstDeltaE->GetStripNr().size();
 	} else if(fFirstDeltaE->GetStripNr().size() > 1) { 
 		// two not neighbooring strips: ignore them
-		std::cerr << "found " << fFirstDeltaE->GetStripNr().size() << " strips " << fFirstDeltaE->GetStripNr()[0] << " and " << fFirstDeltaE->GetStripNr()[1] << " but not neighboring!" << std::endl; 
+		//std::cerr<<"found "<<fFirstDeltaE->GetStripNr().size()<<" strips "<<fFirstDeltaE->GetStripNr()[0]<<" and "<<fFirstDeltaE->GetStripNr()[1]<<" but not neighboring!"<<std::endl; 
 		return TVector3(0,0,0);
-	} else if (fFirstDeltaE->GetStripNr().size() == 1) { 
+	} else if(fFirstDeltaE->GetStripNr().size() == 1) { 
 		// one hit only
-		//std::cout << "one hit only" << std::endl;
 		strip = fFirstDeltaE->GetStripNr()[0];
 	} else { 
 		// no hit
-		std::cerr << "can not find any hit " << std::endl;
+		std::cerr<<"can not find any hit "<<std::endl;
 		return TVector3(0,0,0);
 	}
 
@@ -89,18 +86,17 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	  strip += 0.5;
 	}
 	
-	//std::cout << "gas target length: " << fSett->GetGasTargetLength() << std::endl;
-	
 	// running on a gas target? --> use single-sided single strip detector
-	if(fSett->GetGasTargetLength() > 0) { 
+	if(!doubleSidedFirstLayer) { 
 	    // we have no information about phi, so we use the phi of the second layer
 	    SecondPosition(smear); //call to make sure the second position has been calculated
 
 	    // strip 0 closest to target
-	    if(fFirstDirection == kForward) {
-	      z = fSett->GetFBarrelDeltaESinglePosZ()[quadr] - fSett->GetFBarrelDeltaESingleLengthY()/2. + strip*fSett->GetFBarrelDeltaESingleStripWidth();
+	    if(fFirstDirection == kForward) {//std::cout<<" \n !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 1. layer quadr forward: "<< quadr << std::endl;
+	      z = fSett->GetFBarrelDeltaESinglePosZ()[quadr] - fSett->GetFBarrelDeltaESingleLengthY()/2. + strip*fSett->GetFBarrelDeltaESingleStripWidthPar();
 	    } else { // backward
-	      z = fSett->GetBBarrelDeltaESinglePosZ()[quadr] + fSett->GetBBarrelDeltaESingleLengthY()/2. - strip*fSett->GetBBarrelDeltaESingleStripWidth();
+			//std::cout<<" \n !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 1. layer quadr backward: "<< quadr << std::endl;
+	      z = fSett->GetBBarrelDeltaESinglePosZ()[quadr] + fSett->GetBBarrelDeltaESingleLengthY()/2. - strip*fSett->GetBBarrelDeltaESingleStripWidthPar();
 	    }
 	    //quadr   0 top   1 lef   2 bot   3 rig
 	    //x       +pos    +dtb    -pos    -dtb
@@ -110,19 +106,31 @@ TVector3 HitSim::FirstPosition(bool smear) {
 	    case 0:
 	      x = fSecondPosition.X()*fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]/fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
 	      y = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
-	      break;
+	      break; 
+	      
+	      // exchange case1 and case 2 because it is not any more box shape, just top (0) and bottom (0) Leila 
+	      
 	    case 1:
-	      x = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
-	      y = fSecondPosition.Y()*fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]/fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
-	      break;
-	    case 2:
+	      /*x = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
+	      y = fSecondPosition.Y()*fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]/fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr]; original*/
+	      
 	      x = fSecondPosition.X()*fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]/fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
-	      y = -fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
+	      y = -fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]; // changed by Leila	      	      
 	      break;
+	      
+	    case 2:
+	      /*x = fSecondPosition.X()*fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]/fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
+	      y = -fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]; original */
+	      
+	      x = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
+	      y = fSecondPosition.Y()*fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]/fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];// changed by Leila
+	      break;
+	      
 	    case 3:
 	      x = -fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
 	      y = fSecondPosition.Y()*fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]/fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
 	      break;
+	      
 	    default:
 	      break;
 	    }
@@ -130,10 +138,6 @@ TVector3 HitSim::FirstPosition(bool smear) {
 		  // running on a solid target --> double-sided strip detector
 	    // "ring" number = strips parallel to beam direction
 	    double ring = 0;
-	    
-	    //std::cout << "neighbour ring: " << ((fFirstDeltaE->GetNeighborRing()) ? "true" : "false") << std::endl;
-	    //std::cout << "size: " << fFirstDeltaE->GetRingNr().size() << std::endl;
-	    
 	    // two neighboring rings hit: calculate mean strip number
 	    if(fFirstDeltaE->GetNeighborRing()) {
 			 for(unsigned int i = 0; i < fFirstDeltaE->GetRingNr().size(); i++) { 
@@ -142,7 +146,7 @@ TVector3 HitSim::FirstPosition(bool smear) {
 			 ring /= fFirstDeltaE->GetRingNr().size();
 		 } else if(fFirstDeltaE->GetRingNr().size() > 1) { 
 			 // two not neighbooring rings: ignore them
-			 std::cerr<<"first : found "<<fFirstDeltaE->GetRingNr().size()<<" \"rings\" "<<fFirstDeltaE->GetRingNr()[0]<<" and "<<fFirstDeltaE->GetRingNr()[1]<<" but not neighboring!"<<std::endl; 
+	      // std::cerr<<"first : found "<<fFirstDeltaE->GetRingNr().size()<<" \"rings\" "<<fFirstDeltaE->GetRingNr()[0]<<" and "<<fFirstDeltaE->GetRingNr()[1]<<" but not neighboring!"<<std::endl; 
 			 return TVector3(0,0,0);
 		 } else if(fFirstDeltaE->GetRingNr().size() == 1) { 
 			 // one hit only
@@ -163,56 +167,74 @@ TVector3 HitSim::FirstPosition(bool smear) {
 
 		 // strip 0 closest to target
 		 if(fFirstDirection == kForward) {
-			 z = fSett->GetFBarrelDeltaESinglePosZ()[quadr] - fSett->GetFBarrelDeltaESingleLengthY()/2. + strip*fSett->GetFBarrelDeltaESingleStripWidth();
+			 z = fSett->GetFBarrelDeltaESinglePosZ()[quadr] - fSett->GetFBarrelDeltaESingleLengthY()/2. + strip*fSett->GetFBarrelDeltaESingleStripWidthPar();
 			 //change strip # so that the range isn't 0 - (n-1), but -n/2 - n/2
-			 ring -= fSett->GetFBarrelDeltaESingleLengthX()/fSett->GetFBarrelDeltaESingleStripWidth()/2.;
+			 ring -= fSett->GetFBarrelDeltaESingleLengthX()/fSett->GetFBarrelDeltaESingleStripWidthPer()/2.;
 
 			 //quadr   0 top   1 lef   2 bot   3 rig
 			 //x       +pos    +dtb    -pos    -dtb
 			 //y       +dtb    -pos    -dtb    +pos
+			 
+			 // exchange case1 and case 2 because it is not any more box shape, just top (0) and bottom (0) Leila
 
 			 switch(quadr) {
 				 case 0:
-					 x = -ring*fSett->GetFBarrelDeltaESingleStripWidth();
+					 x = -ring*fSett->GetFBarrelDeltaESingleStripWidthPer();
 					 y = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
 					 break;
+					 
 				 case 1:
-					 x = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
-					 y = ring*fSett->GetFBarrelDeltaESingleStripWidth();
-					 break;
-				 case 2:
-					 x = ring*fSett->GetFBarrelDeltaESingleStripWidth();
+					 /*x = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
+					 y = ring*fSett->GetFBarrelDeltaESingleStripWidth(); original */
+					 
+					 x = ring*fSett->GetFBarrelDeltaESingleStripWidthPer();
 					 y = -fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
 					 break;
+					 
+				 case 2:
+					 /*x = ring*fSett->GetFBarrelDeltaESingleStripWidth();
+					 y = -fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr]; original */
+					 
+					 x = fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
+					 y = ring*fSett->GetFBarrelDeltaESingleStripWidthPer();
+					 break;
+					 
 				 case 3:
 					 x = -fSett->GetFBarrelDeltaESingleDistanceToBeam()[quadr];
-					 y = -ring*fSett->GetFBarrelDeltaESingleStripWidth();
+					 y = -ring*fSett->GetFBarrelDeltaESingleStripWidthPer();
 					 break;
 				 default:
 					 break;
 			 }
 		 } else { // backward
-			 z = fSett->GetBBarrelDeltaESinglePosZ()[quadr] + fSett->GetBBarrelDeltaESingleLengthY()/2. - strip*fSett->GetBBarrelDeltaESingleStripWidth();
+			 z = fSett->GetBBarrelDeltaESinglePosZ()[quadr] + fSett->GetBBarrelDeltaESingleLengthY()/2. - strip*fSett->GetBBarrelDeltaESingleStripWidthPar();
 			 //change ring # so that the range isn't 0 - (n-1), but -n/2 - n/2
-			 ring -= fSett->GetBBarrelDeltaESingleLengthX()/fSett->GetBBarrelDeltaESingleStripWidth()/2.;
+			 ring -= fSett->GetBBarrelDeltaESingleLengthX()/fSett->GetBBarrelDeltaESingleStripWidthPer()/2.;
 
 
 			 switch(quadr) {
 				 case 0:
-					 x = -ring*fSett->GetBBarrelDeltaESingleStripWidth();
+					 x = -ring*fSett->GetBBarrelDeltaESingleStripWidthPer();
 					 y = fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr];
 					 break;
 				 case 1:
-					 x = fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr];
-					 y = ring*fSett->GetBBarrelDeltaESingleStripWidth();
+					 /*x = fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr];
+					 y = ring*fSett->GetBBarrelDeltaESingleStripWidth(); original */
+					 
+					 x = ring*fSett->GetBBarrelDeltaESingleStripWidthPer();
+					 y = -fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr]; // changed by Leila
 					 break;
+					 
 				 case 2:
-					 x = ring*fSett->GetBBarrelDeltaESingleStripWidth();
-					 y = -fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr];
+					 /*x = ring*fSett->GetBBarrelDeltaESingleStripWidth();
+					 y = -fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr]; original */
+					 
+					 x = fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr];
+					 y = ring*fSett->GetBBarrelDeltaESingleStripWidthPer(); // changed by Leila
 					 break;
 				 case 3:
 					 x = -fSett->GetBBarrelDeltaESingleDistanceToBeam()[quadr];
-					 y = -ring*fSett->GetBBarrelDeltaESingleStripWidth();
+					 y = -ring*fSett->GetBBarrelDeltaESingleStripWidthPer();
 					 break;
 				 default:
 					 break;
@@ -246,7 +268,8 @@ TVector3 HitSim::SecondPosition(bool smear) {
 	double x,y,z;
 
 	// quadrant
-	int quadr = fSecondDeltaE->GetID();                                                   
+	int quadr = fSecondDeltaE->GetID();  
+	//std::cout<<" \n !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! second layer no: "<< quadr << std::endl;                                                 
 
 	// strip number = strips perpendicular to beam direction
 	double strip = 0;
@@ -259,7 +282,7 @@ TVector3 HitSim::SecondPosition(bool smear) {
 		strip /= fSecondDeltaE->GetStripNr().size();
 	} else if(fSecondDeltaE->GetStripNr().size() > 1) { 
 		// two not neighbooring strips: ignore them
-		std::cerr<<"second : found "<<fSecondDeltaE->GetStripNr().size()<<" strips "<<fSecondDeltaE->GetStripNr()[0]<<" and "<<fSecondDeltaE->GetStripNr()[1]<<" but not neighboring!"<<std::endl; 
+	  //	std::cerr<<"second : found "<<fSecondDeltaE->GetStripNr().size()<<" strips "<<fSecondDeltaE->GetStripNr()[0]<<" and "<<fSecondDeltaE->GetStripNr()[1]<<" but not neighboring!"<<std::endl; 
 		return TVector3(0,0,0);
 	} else if(fSecondDeltaE->GetStripNr().size() == 1) { 
 		// one hit only
@@ -281,7 +304,7 @@ TVector3 HitSim::SecondPosition(bool smear) {
 		ring /= fSecondDeltaE->GetRingNr().size();
 	} else if(fSecondDeltaE->GetRingNr().size() > 1) { 
 		// two not neighbooring rings: ignore them
-		std::cerr<<"second : found "<<fSecondDeltaE->GetRingNr().size()<<" \"rings\" "<<fSecondDeltaE->GetRingNr()[0]<<" and "<<fSecondDeltaE->GetRingNr()[1]<<" but not neighboring!"<<std::endl; 
+		//std::cerr<<"second : found "<<fSecondDeltaE->GetRingNr().size()<<" \"rings\" "<<fSecondDeltaE->GetRingNr()[0]<<" and "<<fSecondDeltaE->GetRingNr()[1]<<" but not neighboring!"<<std::endl; 
 		return TVector3(0,0,0);
 	} else if(fSecondDeltaE->GetRingNr().size() == 1) { 
 		// one hit only
@@ -295,62 +318,84 @@ TVector3 HitSim::SecondPosition(bool smear) {
 	// smear ring position
 	if(smear) {
 		ring+=(1-fRand->Uniform());  //uniform (0,1] - > 1-uniform [0,1)
+		strip+=(1-fRand->Uniform());  //uniform (0,1] - > 1-uniform [0,1)
 	} else { // use mean strip position
 		ring+=0.5;
+		strip+=0.5;
 	}
 
 	// strip 0 closest to target
-	if(fSecondDirection == kForward) {
-		z = fSett->GetSecondFBarrelDeltaESinglePosZ()[quadr] - fSett->GetSecondFBarrelDeltaESingleLengthY()/2. + strip*fSett->GetSecondFBarrelDeltaESingleStripWidth();
+	if(fSecondDirection == kForward) {//std::cout<<" \n !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 2. layer strips/rings quadr forward: "<< quadr << std::endl;
+		z = fSett->GetSecondFBarrelDeltaESinglePosZ()[quadr] - fSett->GetSecondFBarrelDeltaESingleLengthY()/2. + strip*fSett->GetSecondFBarrelDeltaESingleStripWidthPar();
 		//change ring # so that the range isn't 0 - (n-1), but -n/2 - n/2
-		ring -= fSett->GetSecondFBarrelDeltaESingleLengthX()/fSett->GetSecondFBarrelDeltaESingleStripWidth()/2.;
+		ring -= fSett->GetSecondFBarrelDeltaESingleLengthX()/fSett->GetSecondFBarrelDeltaESingleStripWidthPer()/2.;
 
 		//quadr   0 top   1 lef   2 bot   3 rig
 		//x       +pos    +dtb    -pos    -dtb
 		//y       +dtb    -pos    -dtb    +pos
+		
+		 // exchange case1 and case 2 because it is not any more box shape, just top (0) and bottom (0) Leila
 
 		switch(quadr) {
 			case 0:
-				x = -ring*fSett->GetSecondFBarrelDeltaESingleStripWidth();
+				x = -ring*fSett->GetSecondFBarrelDeltaESingleStripWidthPer(); // why negative????
 				y = fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
 				break;
+				
 			case 1:
-				x = fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
-				y = ring*fSett->GetSecondFBarrelDeltaESingleStripWidth();
+				/*x = fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
+				y = ring*fSett->GetSecondFBarrelDeltaESingleStripWidth(); original */
+				
+				x = ring*fSett->GetSecondFBarrelDeltaESingleStripWidthPer();
+				y = -fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr]; // changed by Leila
 				break;
+				
 			case 2:
-				x = ring*fSett->GetSecondFBarrelDeltaESingleStripWidth();
-				y = -fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
+				/*x = ring*fSett->GetSecondFBarrelDeltaESingleStripWidth();
+				y = -fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr]; original*/
+				
+				x = fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
+				y = ring*fSett->GetSecondFBarrelDeltaESingleStripWidthPer(); // changed by Leila
 				break;
+				
 			case 3:
 				x = -fSett->GetSecondFBarrelDeltaESingleDistanceToBeam()[quadr];
-				y = -ring*fSett->GetSecondFBarrelDeltaESingleStripWidth();
+				y = -ring*fSett->GetSecondFBarrelDeltaESingleStripWidthPer();
 				break;
 			default:
 				break;
 		}
 	} else { // backward
-		z = fSett->GetBBarrelDeltaESinglePosZ()[quadr] + fSett->GetSecondBBarrelDeltaESingleLengthY()/2. - strip*fSett->GetSecondBBarrelDeltaESingleStripWidth();
+		//std::cout<<" \n !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! 2. layer strips/rings quadr backward: "<< quadr << std::endl;
+		z = fSett->GetBBarrelDeltaESinglePosZ()[quadr] + fSett->GetSecondBBarrelDeltaESingleLengthY()/2. - strip*fSett->GetSecondBBarrelDeltaESingleStripWidthPar();
 		//change ring # so that the range isn't 0 - (n-1), but -n/2 - n/2
-		ring -= fSett->GetSecondBBarrelDeltaESingleLengthX()/fSett->GetSecondBBarrelDeltaESingleStripWidth()/2.;
+		ring -= fSett->GetSecondBBarrelDeltaESingleLengthX()/fSett->GetSecondBBarrelDeltaESingleStripWidthPer()/2.;
 
 
 		switch(quadr) {
 			case 0:
-				x = -ring*fSett->GetSecondBBarrelDeltaESingleStripWidth();
+				x = -ring*fSett->GetSecondBBarrelDeltaESingleStripWidthPer();
 				y = fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr];
 				break;
+				
 			case 1:
-				x = fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr];
-				y = ring*fSett->GetSecondBBarrelDeltaESingleStripWidth();
+				/*x = fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr];
+				y = ring*fSett->GetSecondBBarrelDeltaESingleStripWidth(); original */
+				
+				x = ring*fSett->GetSecondBBarrelDeltaESingleStripWidthPer();
+				y = -fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr]; // changed by Leila
 				break;
 			case 2:
-				x = ring*fSett->GetSecondBBarrelDeltaESingleStripWidth();
-				y = -fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr];
+				/*x = ring*fSett->GetSecondBBarrelDeltaESingleStripWidth();
+				y = -fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr]; original */ 
+				
+				x = fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr];
+				y = ring*fSett->GetSecondBBarrelDeltaESingleStripWidthPer(); // changed by Leila
 				break;
+				
 			case 3:
 				x = -fSett->GetSecondBBarrelDeltaESingleDistanceToBeam()[quadr];
-				y = -ring*fSett->GetSecondBBarrelDeltaESingleStripWidth();
+				y = -ring*fSett->GetSecondBBarrelDeltaESingleStripWidthPer();
 				break;
 			default:
 				break;

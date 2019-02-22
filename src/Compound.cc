@@ -58,7 +58,8 @@ Compound::Compound(const char* symbol) {
 		fFrac[2] = 4.*fNuclei[2]->GetMass()/(8.*fNuclei[0]->GetMass() + 10.*fNuclei[1]->GetMass() + 4.*fNuclei[2]->GetMass());
 
 		fMass = fNuclei[0]->GetMass()*8. + fNuclei[1]->GetMass()*10. + fNuclei[2]->GetMass()*4.;
-		fDensity = 1.4; // from Geant4
+		fDensity = 1.39; // from Geant4 or google 1.39 g/cm3
+		
 	} else if(strstr(symbol,"TTI")) {
 		std::cout << "Tritiated Titanium Target!" << std::endl;
 		// ratioTTI = atomic ratio Tritium/Titanium
@@ -107,7 +108,10 @@ Compound::Compound(const char* symbol) {
 		fFrac[0] = 1;
 
 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
-		//density depends on pressure, so user will need to use SetDensity
+		
+		//density depends on pressure, so user will need to use SetDensity		
+		fDensity = 0.0001645; // g/cm3 H2 gas density is 0.1796 kg/m3 or 0.1796e-3 g/cm3 at stp (1 bar & 0 deg or 273 K). 0.1645 kg/m3 @ 298K
+		
 	} else if(strstr(symbol,"SolidDeuterium")) {
 		std::cout << "Solid Deuterium!" << std::endl;
 		fNuclei.resize(1);
@@ -117,24 +121,41 @@ Compound::Compound(const char* symbol) {
 
 		fFrac[0] = 1;
 
-		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
+		fMass = fNuclei[0]->GetMass() * 2.0;          
 		fDensity = 0.1967;
-	}  else if(strstr(symbol,"helium")) {
- 		std::cout << "helium!" << std::endl;
- 		fNuclei.resize(1);
- 		fFrac.resize(1);
- 
- 		fNuclei[0] = new Nucleus(1,1,massfile.c_str());
- 
- 		fFrac[0] = 1;
- 
- 		fMass = fNuclei[0]->GetMass() * 2.0;              //*2.0 since it's a molecule
- 		fDensity = 0.1967;
- 	}
+		
+	}else if(strstr(symbol,"helium")) {
+		std::cout << "Helium Gas!" << std::endl;
+		fNuclei.resize(1);
+		fFrac.resize(1);
 
+		fNuclei[0] = new Nucleus(2,2,massfile.c_str());
+
+		fFrac[0] = 1;
+
+		fMass = fNuclei[0]->GetMass() * 1.0;
+		std::cerr<<"symbol " << symbol<< std::endl;
+		
+		fDensity = 0.166e-3;;// He gas density is 0.179 kg/m3 or 0.179e-3 g/cm3 at stp (1 bar & 0 deg or 273 K). 0.166 kg/m3 @ 293K
+	} 
+	
+	else if(strstr(symbol,"silicon")) {
+		std::cout << "silicon!" << std::endl;
+		fNuclei.resize(1);
+		fFrac.resize(1);
+
+		fNuclei[0] = new Nucleus(14,14,massfile.c_str());
+
+		fFrac[0] = 1;
+
+		fMass = fNuclei[0]->GetMass() * 1.0;
+		
+		fDensity = 2.329;// 2.329 g/cm3 from google
+	} 
 
 	else {
 		std::cerr<<"Compound \""<<symbol<<"\" not implemented yet!"<< std::endl;
+		std::cerr<<"symbol " << symbol<< std::endl;
 		exit(1);
 	}
 }

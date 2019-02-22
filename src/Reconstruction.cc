@@ -278,7 +278,7 @@ TSpline3* Reconstruction::Energy2EnergyAfter(double emax, double size, bool gase
 	return spline;
 }
 
-TSpline3* Reconstruction::Thickness2EnergyAfter(double energy, double maxThickness, double stepSize, bool gaseous) {
+TSpline3* Reconstruction::Thickness2EnergyAfter(double energy, double maxThickness, double stepSize, bool gaseous) { // used to get energies in the middel and aftar target **** LA ****
 	double* thickness = new double[static_cast<int>(maxThickness/stepSize)+1];
 	double* eAfter    = new double[static_cast<int>(maxThickness/stepSize)+1];
 	int i;
@@ -288,12 +288,17 @@ TSpline3* Reconstruction::Thickness2EnergyAfter(double energy, double maxThickne
 		thickness[i] = i*stepSize;
 		fTargetThickness = thickness[i];
 		eAfter[i]  = EnergyAfter(energy, -5, gaseous)*1000.; //conversion to keV
-		if(eAfter[i] < 10.) {
+		//if(eAfter[i] < 0.) 
+		//std::cout<<" before break energy < 0 --> "<<eAfter[i]<<std::endl;
+		if(eAfter[i] < 10.) {// not to get negative energies??? **** LA ****
 			break;
 		}
+		//if(eAfter[i] < 0.) 
+		//std::cout<<" after break energy < 0 --> "<<eAfter[i]<<std::endl;
 	}
 	TGraph* graph = new TGraph(i, thickness, eAfter);
 	TSpline3* spline = new TSpline3("Thickness2EnergyAfter", graph);
+	std::cout<<" end of the loop energy < 0 --> "<<eAfter[i]<<std::endl;
 	delete graph;
 	delete[] thickness;
 	delete[] eAfter;
