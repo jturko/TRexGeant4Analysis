@@ -3,24 +3,24 @@
 ROOTCFLAGS   := $(shell root-config --cflags)
 ROOTLIBS     := $(shell root-config --libs)
 ROOTGLIBS    := $(shell root-config --glibs) -lMinuit
-ROOTINC      := -I$(shell root-config --incdir)
+ROOTINC      := $(shell root-config --incdir)
 
 LIB_DIR = $(HOME)/lib
 
 #CLHEP_LIBS = -I /usr/local/opt/geant/CLHEP/include -l/usr/local/opt/geant/CLHEP/lib/libCLHEP.a
 
-ALLIBS = $(ROOTLIBS) $(ROOTGLIBS) $(CLHEP_LIBS) -lSpectrum
+ALLIBS = $(CLHEP_LIBS) $(ROOTGLIBS) -lSpectrum 
 
 CPP         = g++
-CFLAGS		= -g -fPIC $(ROOTCFLAGS) -Wall  -Wno-write-strings -DSIMULATION_PATH=\"$(PWD)\" -std=c++11
+CFLAGS		= -g -fPIC -Wall -Wno-write-strings -Wl,--no-as-needed -DSIMULATION_PATH=\"$(PWD)\" -std=c++11 $(ROOTCFLAGS)
 
 LFLAGS		= -g -fPIC
 LIBS 		= $(ALLIBS)
 
-COMM_DIR = $(HOME)/CommandLineInterface 
+COMM_DIR = $(HOME)/programs/CommandLineInterface 
 SIM_DIR = ../include
 
-INCLUDE_DIRS = $(SIM_DIR) $(COMM_DIR) $(PWD) $(PWD)/include $(G4INCLUDE)
+INCLUDE_DIRS = $(COMM_DIR) $(PWD) $(PWD)/include $(SIM_DIR) $(G4INCLUDE)
 
 FILES = Reconstruction Nucleus Compound HitSim Particle Kinematics ParticleMC ReconstructSimDictionary TRexSettings Germanium
 
@@ -32,7 +32,7 @@ DEPENDENCIES = include/Particle.hh \
 	../include/TRexSettings.hh \
 	include/RootLinkDef.h
 
-TOTAL_LIBS = $(ALLIBS) -L$(LIB_DIR) -L$(G4TMP)/$(G4SYSTEM)/TRexGeant4 -lCommandLineInterface
+TOTAL_LIBS = -L$(G4WORKDIR)/bin/$(G4SYSTEM)/TRexGeant4 -L$(LIB_DIR) -lCommandLineInterface $(ALLIBS)
 
 INCLUDES =  $(addprefix -I,$(INCLUDE_DIRS))
 
